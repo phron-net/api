@@ -23,7 +23,7 @@ jobs:
           go-version: "1.27.3"
           cache: false
       - name: Lint, regenerate and tidy
-        run: ./scripts/generate.sh
+        run: bash scripts/generate.sh
       - name: gen/, go.mod and go.sum are up to date
         run: |
           git add -N gen

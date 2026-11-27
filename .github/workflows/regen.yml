@@ -22,7 +22,7 @@ jobs:
           go-version: "1.27.3"
           cache: false
       - name: Regenerate
-        run: ./scripts/generate.sh
+        run: bash scripts/generate.sh
       - name: Print the result
         run: |
           tar czf "$RUNNER_TEMP/gen.tgz" gen go.mod go.sum
