@@ -14,11 +14,13 @@ permissions:
 
 jobs:
   regen:
-    runs-on: arc-runner-set-phron-net-gvisor-8c
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Put the baked Go on PATH
-        run: echo "/usr/local/share/go/1.27.3/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-go@v7
+        with:
+          go-version: "1.27.3"
+          cache: false
       - name: Regenerate
         run: ./scripts/generate.sh
       - name: Print the result

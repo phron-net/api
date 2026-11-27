@@ -10,6 +10,7 @@ mkdir -p "$GOBIN"
 export PATH="$GOBIN:$PATH"
 go install "google.golang.org/protobuf/cmd/protoc-gen-go@${PROTOC_GEN_GO}"
 go install "connectrpc.com/connect/cmd/protoc-gen-connect-go@${CONNECT_GO}"
+go install "github.com/bufbuild/buf/cmd/buf@${BUF}"
 buf --version
 buf lint
 buf generate
