@@ -1,0 +1,11 @@
+version: v2
+# Local plugins only: nothing is sent to a hosted generator. The plugin
+# versions are pinned in scripts/tools.env and installed by CI.
+clean: true
+plugins:
+  - local: protoc-gen-go
+    out: gen
+    opt: paths=source_relative
+  - local: protoc-gen-connect-go
+    out: gen
+    opt: paths=source_relative

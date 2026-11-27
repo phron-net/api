@@ -1,0 +1,512 @@
+syntax = "proto3";
+
+package zonhoren.phron.v1;
+
+import "google/protobuf/timestamp.proto";
+import "zonhoren/phron/v1/locations.proto";
+import "zonhoren/phron/v1/storage_common.proto";
+
+option go_package = "github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1";
+
+// StorageService defines the customer-facing operations of Phron Object
+// Storage, an S3-compatible Service billed from the Organization's balance.
+//
+// Every call acts on the caller's own Organization (resolved from the
+// caller's verified sign-in, never from a request field). The control plane is
+// never on the data path: objects are read and written over the Tenant's own
+// S3 endpoint with a Storage Access Key.
+//
+// Money is a decimal string in USD; sizes are bytes (decimal GB = 10^9).
+service StorageService {
+  // GetStorageOverview returns the Organization's storage state, endpoint,
+  // usage, cost this month, price and any zero-balance countdown. Safe to call
+  // before a Tenant exists (state NOT_CREATED).
+  rpc GetStorageOverview(GetStorageOverviewRequest) returns (GetStorageOverviewResponse);
+
+  // GetStorageAvailability tells what the platform can create in a Location
+  // now, so clients ask the platform and never assume a fixed ceiling.
+  // Safe to call before any storage exists.
+  rpc GetStorageAvailability(GetStorageAvailabilityRequest) returns (GetStorageAvailabilityResponse);
+
+  // ListStorageBuckets lists the Tenant's buckets with size and object count.
+  // The Tenant is the source of truth for buckets, so buckets made with an S3
+  // tool appear here too. Empty before a Tenant exists.
+  rpc ListStorageBuckets(ListStorageBucketsRequest) returns (ListStorageBucketsResponse);
+  // CreateStorageBucket creates a bucket. When the Organization has no Tenant
+  // yet this creates it too, in the Location the request names (see
+  // CreateStorageBucketRequest.location), which needs a positive balance
+  // (FAILED_PRECONDITION otherwise). Idempotent for the Tenant, and for a
+  // bucket the caller already has under that name. While the Tenant is
+  // provisioning the response carries no bucket, only the state and progress;
+  // the bucket is created as soon as the Tenant is ready. With object_lock the
+  // bucket is made lock-enabled by Phron (keys cannot make one); that needs a
+  // ready Tenant (FAILED_PRECONDITION while it is being prepared) and cannot
+  // be added to a bucket that exists without it (FAILED_PRECONDITION).
+  rpc CreateStorageBucket(CreateStorageBucketRequest) returns (CreateStorageBucketResponse);
+  // DeleteStorageBucket deletes an EMPTY bucket (FAILED_PRECONDITION
+  // otherwise), as S3 does. FAILED_PRECONDITION too while Phron has content in
+  // the bucket taken down.
+  rpc DeleteStorageBucket(DeleteStorageBucketRequest) returns (DeleteStorageBucketResponse);
+
+  // CreateStorageKey creates a Storage Access Key. Its response is the only
+  // place the secret ever appears.
+  rpc CreateStorageKey(CreateStorageKeyRequest) returns (CreateStorageKeyResponse);
+  rpc ListStorageKeys(ListStorageKeysRequest) returns (ListStorageKeysResponse);
+  // SuspendStorageKey cuts a key off without deleting it. Idempotent. An Admin
+  // may suspend any key of the Workspace; a Developer only a key they created
+  // (PERMISSION_DENIED for another member's key, and for a key made before
+  // creators were recorded).
+  rpc SuspendStorageKey(SuspendStorageKeyRequest) returns (SuspendStorageKeyResponse);
+  // ResumeStorageKey re-enables a suspended key. Idempotent; an expired key
+  // cannot be resumed (FAILED_PRECONDITION).
+  rpc ResumeStorageKey(ResumeStorageKeyRequest) returns (ResumeStorageKeyResponse);
+  // DeleteStorageKey removes a key for good. Idempotent. Who may delete which
+  // key is the rule of SuspendStorageKey.
+  rpc DeleteStorageKey(DeleteStorageKeyRequest) returns (DeleteStorageKeyResponse);
+  // SuspendStorageKeysByMember suspends every key of the Workspace's storage
+  // that the named member created, in every Location: the offboarding step when a
+  // person leaves. Admin only. Idempotent; a member who created no key suspends
+  // none. Keys made before creators were recorded have no creator and are never
+  // matched.
+  rpc SuspendStorageKeysByMember(SuspendStorageKeysByMemberRequest) returns (SuspendStorageKeysByMemberResponse);
+
+  // SetStorageBucketLimit sets a bucket's optional size limit, a spend guard,
+  // on an existing bucket (NOT_FOUND otherwise). Takes effect without a
+  // restart, but not at once on every server: the response carries a
+  // limit_state that tells how far it has got.
+  rpc SetStorageBucketLimit(SetStorageBucketLimitRequest) returns (SetStorageBucketLimitResponse);
+  // ClearStorageBucketLimit removes a bucket's limit. Idempotent.
+  rpc ClearStorageBucketLimit(ClearStorageBucketLimitRequest) returns (ClearStorageBucketLimitResponse);
+
+  // DeleteStorage deletes the Organization's whole Storage Tenant and every
+  // object in it, for good. Needs the typed confirmation. FAILED_PRECONDITION
+  // while Phron has any content of the Tenant taken down.
+  rpc DeleteStorage(DeleteStorageRequest) returns (DeleteStorageResponse);
+}
+
+message GetStorageOverviewRequest {
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 1;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 2;
+}
+
+// How far along a Tenant that is being prepared is.
+message StorageProvisioningProgress {
+  // A short human-readable step, for display only.
+  string phase = 1;
+  // 0..100.
+  int32 percent = 2;
+  optional google.protobuf.Timestamp estimated_ready_at = 3;
+}
+
+message StorageUsage {
+  // Logical stored bytes (what is billed).
+  int64 stored_bytes = 1;
+  int64 object_count = 2;
+  int32 bucket_count = 3;
+  int32 key_count = 4;
+  // Bytes served this month. Recorded, not billed.
+  int64 egress_bytes_this_month = 5;
+  // Storage charges so far this calendar month.
+  string month_to_date_cost_usd = 6;
+  // True when the month's charges are being lifted to the monthly minimum, so
+  // a client can explain the floor next to the number.
+  bool minimum_charge_applies = 7;
+  // When the figures were last measured. A figure carried forward from an
+  // older sample is flagged with usage_is_stale.
+  optional google.protobuf.Timestamp sampled_at = 8;
+  bool usage_is_stale = 9;
+  // The ISO 4217 code `month_to_date_cost_usd` is in: the billing currency of the account that pays, not always USD (the field keeps its wire name).
+  // Empty while no account pays for the Organization.
+  string currency = 10;
+}
+
+message StoragePricing {
+  string price_per_gb_month_usd = 1;
+  // The floor under a Tenant's monthly usage charge (not added on top).
+  string monthly_minimum_usd = 2;
+  // Per million requests served: writes are PUT, COPY, POST and LIST requests;
+  // reads are every other billed request. DELETE and CANCEL requests are free.
+  // Only requests the server answered with a 2xx or 3xx are billed.
+  string price_per_million_write_requests_usd = 3;
+  string price_per_million_read_requests_usd = 4;
+}
+
+// When the balance reached zero, and when each consequence lands. Absent from
+// the overview while the balance is positive.
+message StorageDelinquency {
+  google.protobuf.Timestamp balance_zero_since = 1;
+  google.protobuf.Timestamp writes_blocked_at = 2;
+  google.protobuf.Timestamp frozen_at = 3;
+  google.protobuf.Timestamp flagged_for_review_at = 4;
+}
+
+message GetStorageOverviewResponse {
+  StorageTenantState state = 1;
+  // https://<opaque-id>.s3.phron.net, empty until the Tenant exists. S3 tools
+  // use path-style addressing against it.
+  string endpoint_url = 2;
+  // The S3 signing region, e.g. "eu-1"; empty until the Tenant exists.
+  string region = 3;
+  // Set only while state is PROVISIONING.
+  optional StorageProvisioningProgress provisioning = 4;
+  StorageUsage usage = 5;
+  StoragePricing pricing = 6;
+  optional StorageDelinquency delinquency = 7;
+  // 8 (self_service_ceiling_bytes) and 9 (latest_capacity_request) were removed.
+  reserved 8, 9;
+  reserved "self_service_ceiling_bytes", "latest_capacity_request";
+  // The Location (Location.id) the Organization's storage lives in, chosen
+  // when it was created and never changed; empty until the Tenant exists.
+  string location = 10;
+  // Every Location, with whether new storage can be created there now. The
+  // first-storage screen offers these; once storage exists only `location`
+  // matters.
+  repeated Location locations = 11;
+  // The Workspace (its id) the storage the overview describes belongs to.
+  string workspace_id = 12;
+  // The text every bucket name of the described Cell starts with (a shared
+  // Cell's `<label>-`), empty for a Tenant or when no Cell is described. The
+  // customer chooses only the part after it (CreateStorageBucketRequest.name
+  // is that part); every other call, and every name a response returns, is the
+  // full name.
+  string bucket_name_prefix = 13;
+  // Every shared Cell of the Workspace, one per Location. Empty for a
+  // Workspace whose storage is a Tenant or does not exist yet. With two Cells
+  // and no location in the request, the fields above that belong to one Cell
+  // (state, endpoint_url, region, usage, delinquency, location, provisioning,
+  // bucket_name_prefix) are left empty and this list carries both.
+  repeated StorageCellSummary cells = 14;
+  // The Spend state of the Workspace the overview is about, from the read the create gates use. A page offers "create a bucket" on this,
+  // never on the account balance (a display figure without promotional credit). Set on every answer.
+  WorkspaceSpendState spend_state = 15;
+}
+
+// One shared Cell as the customer sees it.
+message StorageCellSummary {
+  // The Cell's id.
+  string id = 1;
+  // The Location (Location.id) the Cell lives in; it never changes.
+  string location = 2;
+  // The S3 signing region of the Location, e.g. "eu-fsn-1".
+  string region = 3;
+  // The endpoint S3 tools use (path-style), empty while no endpoint serves it.
+  string endpoint_url = 4;
+  StorageTenantState state = 5;
+  // The text every bucket name of the Cell starts with.
+  string bucket_name_prefix = 6;
+  optional StorageProvisioningProgress provisioning = 7;
+  StorageUsage usage = 8;
+  optional StorageDelinquency delinquency = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // Set when the platform found the storage behind the Cell gone and rebuilt it empty: what the Cell held
+  // before this moment is lost, and what is stored after it is not. Absent for a Cell that lost nothing.
+  optional google.protobuf.Timestamp data_lost_at = 11;
+}
+
+// Which kind of storage a question is about.
+enum StoragePlacement {
+  STORAGE_PLACEMENT_UNSPECIFIED = 0;
+  // A Cell in shared storage.
+  STORAGE_PLACEMENT_SHARED = 1;
+  // Dedicated storage of the Organization's own.
+  STORAGE_PLACEMENT_DEDICATED = 2;
+}
+
+message GetStorageAvailabilityRequest {
+  // The Location (Location.id) asked about.
+  string location = 1;
+  StoragePlacement placement = 2;
+  // The Workspace (its id) the storage would belong to. Empty means the
+  // Organization's default Workspace; another Organization's answers NOT_FOUND.
+  string workspace_id = 3;
+}
+
+message GetStorageAvailabilityResponse {
+  string location = 1;
+  StoragePlacement placement = 2;
+  // Whether the storage can be created now, in that Location and placement.
+  bool available = 3;
+  // Why not, in words for the customer, when available is false. Never names a
+  // server or a piece of hardware.
+  string unavailable_reason = 4;
+  // The most the platform can place there now, in bytes, when it is known: the
+  // free space of the open shared storage for SHARED, the room for new dedicated
+  // storage for DEDICATED. Absent when not known.
+  optional int64 max_bytes = 5;
+  // True when the Workspace already has a Cell in that Location (only one
+  // Cell per Location is allowed), so SHARED is not offered
+  // again there.
+  bool already_exists = 6;
+}
+
+message ListStorageBucketsRequest {
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 1;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 2;
+}
+
+message StorageBucketItem {
+  string name = 1;
+  int64 size_bytes = 2;
+  int64 object_count = 3;
+  // Absent when the bucket has no limit.
+  optional int64 limit_bytes = 4;
+  optional google.protobuf.Timestamp created_at = 5;
+  // How far the latest limit change has got. Present for a bucket with a limit
+  // and while a change (including a clear) is still taking effect; absent for a
+  // bucket that has no limit and nothing pending.
+  optional StorageLimitState limit_state = 6;
+  // Phron has taken the whole bucket, or some of its objects, down (abuse or a
+  // legal notice): what is taken down cannot be read, changed or deleted, and
+  // the bucket cannot be deleted, until Phron restores it. The data is kept.
+  bool taken_down = 7;
+  // Present when the bucket was made with Object Lock; absent for an ordinary
+  // bucket.
+  optional StorageObjectLock object_lock = 8;
+}
+
+// Object Lock in Governance mode on a bucket. A lock-enabled bucket keeps
+// every version of every object (versioning is on and cannot be suspended).
+// A version under retention cannot be overwritten or deleted through the S3
+// API before its date, except by a key allowed to bypass Governance retention
+// (the full preset); Phron can always delete it. The lock is set when the
+// bucket is created and cannot be removed; it ends when the Storage is
+// deleted. COMPLIANCE mode is not offered. Locked data is billed like any
+// other stored data.
+message StorageObjectLock {
+  // The retention every new object version gets unless its writer sets its
+  // own, in days, 1 to 36500, in GOVERNANCE mode. Absent: no default, so
+  // nothing is locked until a writer sets a retention or a legal hold on an
+  // object.
+  optional int32 default_retention_days = 1;
+}
+
+message ListStorageBucketsResponse {
+  repeated StorageBucketItem buckets = 1;
+}
+
+message CreateStorageBucketRequest {
+  // An S3 bucket name; unique within the Organization's Tenant only. For a
+  // shared Cell this is the customer's part only, at most 52 characters: the
+  // bucket is created as bucket_name_prefix + name, and the response (and
+  // every other call) carries the full name.
+  string name = 1;
+  optional int64 limit_bytes = 2;
+  // Makes the bucket lock-enabled (Governance mode), with an optional default
+  // retention. Asking again for a lock-enabled bucket that exists sets its
+  // default retention to the one asked for (none clears it).
+  optional StorageObjectLock object_lock = 3;
+  // The Location (Location.id) the Organization's storage is created in. Used
+  // only when this call creates the Tenant: INVALID_ARGUMENT when it is not a
+  // Location or not offered for storage (GetStorageOverviewResponse.locations).
+  // Once the Tenant exists it must be empty or the Tenant's own Location
+  // (FAILED_PRECONDITION otherwise: storage never moves). Empty when creating:
+  // the only offered Location, or INVALID_ARGUMENT when more than one is
+  // offered.
+  string location = 4;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 5;
+}
+
+message CreateStorageBucketResponse {
+  // Absent while the Tenant is still being prepared.
+  optional StorageBucketItem bucket = 1;
+  StorageTenantState state = 2;
+  optional StorageProvisioningProgress provisioning = 3;
+}
+
+message DeleteStorageBucketRequest {
+  string name = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 3;
+}
+
+message DeleteStorageBucketResponse {
+  string name = 1;
+}
+
+// A Storage Access Key as listed. Never carries the secret.
+message StorageKeyItem {
+  string id = 1;
+  string name = 2;
+  // The S3 access key id; public, like the id of any S3 key.
+  string access_key_id = 3;
+  StoragePermissionPreset preset = 4;
+  // Empty means every bucket.
+  repeated string bucket_names = 5;
+  optional google.protobuf.Timestamp expires_at = 6;
+  StorageKeyStatus status = 7;
+  google.protobuf.Timestamp created_at = 8;
+  // The member who created the key: their sign-in subject (user id). Empty for a key made before creators were
+  // recorded.
+  string created_by = 9;
+}
+
+message CreateStorageKeyRequest {
+  string name = 1;
+  StoragePermissionPreset preset = 2;
+  // Restrict the key to these buckets; empty means every bucket.
+  repeated string bucket_names = 3;
+  optional google.protobuf.Timestamp expires_at = 4;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 5;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 6;
+}
+
+message CreateStorageKeyResponse {
+  StorageKeyItem key = 1;
+  // The S3 secret access key. Shown this once and not recoverable afterwards.
+  // The only secret in the storage contract.
+  string secret_access_key = 2;
+}
+
+message ListStorageKeysRequest {
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 1;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 2;
+  // Only the keys this member created (a created_by value). Empty lists them all.
+  string created_by = 3;
+}
+
+message ListStorageKeysResponse {
+  repeated StorageKeyItem keys = 1;
+}
+
+message SuspendStorageKeyRequest {
+  string key_id = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+}
+
+message SuspendStorageKeyResponse {
+  StorageKeyItem key = 1;
+}
+
+message ResumeStorageKeyRequest {
+  string key_id = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+}
+
+message ResumeStorageKeyResponse {
+  StorageKeyItem key = 1;
+}
+
+message DeleteStorageKeyRequest {
+  string key_id = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+}
+
+message DeleteStorageKeyResponse {
+  string key_id = 1;
+}
+
+message SuspendStorageKeysByMemberRequest {
+  // The member whose keys are suspended: StorageKeyItem.created_by. Required.
+  string created_by = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+}
+
+message SuspendStorageKeysByMemberResponse {
+  // The keys this call suspended, each as it is now (keys that were already
+  // suspended or expired are not listed).
+  repeated StorageKeyItem keys = 1;
+}
+
+message SetStorageBucketLimitRequest {
+  string bucket_name = 1;
+  // Must be positive; use ClearStorageBucketLimit to remove a limit.
+  int64 limit_bytes = 2;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 3;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 4;
+}
+
+message SetStorageBucketLimitResponse {
+  StorageBucketItem bucket = 1;
+}
+
+message ClearStorageBucketLimitRequest {
+  string bucket_name = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 3;
+}
+
+message ClearStorageBucketLimitResponse {
+  StorageBucketItem bucket = 1;
+}
+
+message DeleteStorageRequest {
+  // Must equal the Organization's slug, typed by the person deleting.
+  string confirmation = 1;
+  // The Workspace (its id) this call is about: the Workspace's own
+  // storage. Empty means the Organization's default Workspace. A Workspace of
+  // another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+  // The Location (Location.id) of the Cell this call is about, when the
+  // Workspace has storage in more than one. Empty means the Workspace's only
+  // storage; INVALID_ARGUMENT when it has storage in two Locations and this is
+  // empty. NOT_FOUND for a Location the Workspace has no storage in.
+  string location = 3;
+}
+
+message DeleteStorageResponse {
+  StorageTenantState state = 1;
+}

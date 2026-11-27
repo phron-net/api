@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint, generated code, vet, build
+    runs-on: arc-runner-set-phron-net-gvisor-8c
+    steps:
+      - uses: actions/checkout@v7
+      - name: Put the baked Go on PATH
+        run: echo "/usr/local/share/go/1.27.3/bin" >> "$GITHUB_PATH"
+      - name: Lint, regenerate and tidy
+        run: ./scripts/generate.sh
+      - name: gen/, go.mod and go.sum are up to date
+        run: |
+          git add -N gen
+          git diff --exit-code -- gen go.mod go.sum
+      - name: go vet
+        run: go vet ./...
+      - name: go build
+        run: go build ./...

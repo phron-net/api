@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package zonhoren.phron.v1;
+
+option go_package = "github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1";
+
+// Types used by StorageService.
+//
+// SECRET HANDLING, for every message in the storage files: the only field in
+// the storage contract that carries a secret is
+// CreateStorageKeyResponse.secret_access_key, returned exactly once.
+
+// Where a Storage Tenant is in its life.
+enum StorageTenantState {
+  STORAGE_TENANT_STATE_UNSPECIFIED = 0;
+  // The Organization has no Tenant yet (it is created implicitly with the
+  // first bucket).
+  STORAGE_TENANT_STATE_NOT_CREATED = 1;
+  // Being prepared; the first bucket is created once it is ready.
+  STORAGE_TENANT_STATE_PROVISIONING = 2;
+  STORAGE_TENANT_STATE_ACTIVE = 3;
+  // Balance at zero for 7 days: writes denied, reads continue.
+  STORAGE_TENANT_STATE_WRITES_BLOCKED = 4;
+  // Balance at zero for 30 days: all access blocked, data kept.
+  STORAGE_TENANT_STATE_FROZEN = 5;
+  // Balance at zero for 90 days: still frozen, and waiting for a
+  // decision by Phron. Nothing is ever deleted automatically.
+  STORAGE_TENANT_STATE_FLAGGED_FOR_REVIEW = 6;
+  // The platform lacks room to grow the storage: writes denied, reads
+  // continue.
+  STORAGE_TENANT_STATE_CAPACITY_BLOCKED = 7;
+  // The Organization is suspended by Phron: the same freeze as FROZEN, but
+  // a top-up does not lift it.
+  STORAGE_TENANT_STATE_SUSPENDED = 8;
+  // The storage was deleted the storage; the
+  // teardown is in progress.
+  STORAGE_TENANT_STATE_DELETING = 9;
+  // Preparing the Tenant ended without working storage; whatever was
+  // started has been removed. Asking for a bucket again prepares it again.
+  STORAGE_TENANT_STATE_FAILED = 10;
+}
+
+// What a Storage Access Key may do. All presets are limited to the key's
+// bucket scope, if it has one.
+enum StoragePermissionPreset {
+  STORAGE_PERMISSION_PRESET_UNSPECIFIED = 0;
+  // Objects and buckets (create/list/delete included).
+  STORAGE_PERMISSION_PRESET_FULL = 1;
+  // Read, write and delete objects; no bucket management.
+  STORAGE_PERMISSION_PRESET_READ_WRITE_OBJECTS = 2;
+  // Read and list objects only.
+  STORAGE_PERMISSION_PRESET_READ_ONLY_OBJECTS = 3;
+}
+
+enum StorageKeyStatus {
+  STORAGE_KEY_STATUS_UNSPECIFIED = 0;
+  STORAGE_KEY_STATUS_ACTIVE = 1;
+  // Suspended by the customer; can be resumed.
+  STORAGE_KEY_STATUS_SUSPENDED = 2;
+  // Past its expiry; cannot be resumed.
+  STORAGE_KEY_STATUS_EXPIRED = 3;
+}
+
+// Where a bucket's size limit change stands. A limit reaches the Tenant's
+// servers one by one, so a change is not in force everywhere at once.
+enum StorageLimitPhase {
+  STORAGE_LIMIT_PHASE_UNSPECIFIED = 0;
+  // Sent, and some servers do not enforce it yet. servers_ready of
+  // servers_total (when known) do.
+  STORAGE_LIMIT_PHASE_APPLYING = 1;
+  // Every server enforces it (or, for a cleared limit, none does).
+  STORAGE_LIMIT_PHASE_APPLIED = 2;
+  // Still not in force on every server long after it was sent. Changing the limit again sends it again.
+  STORAGE_LIMIT_PHASE_NOT_CONVERGED = 3;
+  // The platform cannot tell whether the servers enforce it.
+  STORAGE_LIMIT_PHASE_NOT_VERIFIABLE = 4;
+}
+
+// How far a bucket's most recent limit change has got.
+message StorageLimitState {
+  StorageLimitPhase phase = 1;
+  // Servers that enforce the change, of servers_total. Both are 0 when the
+  // count is not known yet.
+  int32 servers_ready = 2;
+  int32 servers_total = 3;
+}
+
+// Whether a Workspace may be served, as the platform reads it when deciding
+// whether to accept a create. Promotional credit counts: a Workspace funded
+// only by a promotional grant is OK although its net balance is not above zero.
+enum WorkspaceSpendState {
+  WORKSPACE_SPEND_STATE_UNSPECIFIED = 0;
+  // The Workspace may be served; a create is accepted.
+  WORKSPACE_SPEND_STATE_OK = 1;
+  // The payer has no usable credit; a create is refused.
+  WORKSPACE_SPEND_STATE_EXHAUSTED = 2;
+  // A Budget's hard stop covers the Workspace; a create is refused.
+  WORKSPACE_SPEND_STATE_STOPPED = 3;
+  // No payer is set for the Workspace yet; a create is refused.
+  WORKSPACE_SPEND_STATE_NOT_DECLARED = 4;
+}

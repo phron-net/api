@@ -1,0 +1,471 @@
+syntax = "proto3";
+
+package zonhoren.phron.v1;
+
+import "google/protobuf/timestamp.proto";
+import "zonhoren/phron/v1/locations.proto";
+import "zonhoren/phron/v1/servers_common.proto";
+
+option go_package = "github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1";
+
+// ServerService defines the customer-facing operations of Phron Servers: a
+// virtual server, sized freely within the size rules, booted from an Operating
+// System, that owns one public IPv6 /64 for as long as it exists and is billed
+// hourly from the Organization's balance.
+//
+// Every call acts on the caller's own Organization (resolved from the verified
+// sign-in, never from a request field). A Server, SSH key or backup of
+// another Organization is NOT_FOUND, never PERMISSION_DENIED, so ids cannot be
+// probed. Customers reach their Server over the network on its own /64, never
+// through this service.
+//
+// A Server has no IPv4 address: it is reachable over IPv6 only.
+//
+// The firewall RPCs edit the customer's own rules only. The platform's rules
+// (traffic to its own network, and mail ports 25 and 465 until opened on
+// request) always apply above them: they are never listed here, and a customer
+// can neither see them as rules nor change or outrank them.
+//
+// Calls that change a Server's state (create, delete, the power actions,
+// restore) return as soon as the request is accepted, with the state at that
+// moment; the Server reaches its new state later, so callers read it again
+// with GetServer or ListServers. Retrying a call that already took effect is
+// not an error unless its own comment says so.
+//
+// A quarantined Server (Server.quarantined) is read-only to its customer:
+// every call here that would change it (the power actions, delete, the
+// firewall, Snapshots, restore, the mail-port request) is FAILED_PRECONDITION
+// until Phron releases it. Reading it is not affected.
+//
+// Money is a decimal string in USD; memory and disk are in GiB.
+service ServerService {
+  // GetServerPricing returns the Server Price in effect and the size rules
+  // that go with it. When no Server Price has been set yet, price and
+  // rules are absent and no Server can be created.
+  rpc GetServerPricing(GetServerPricingRequest) returns (GetServerPricingResponse);
+  // QuoteServer checks a size against the size rules in effect and prices it.
+  // A size that breaks a rule comes back with its problems and no price; this
+  // is an answer, not an error. The create form calls it as the customer
+  // edits the size.
+  rpc QuoteServer(QuoteServerRequest) returns (QuoteServerResponse);
+  // ListOperatingSystems lists the Operating Systems a new Server can be
+  // created from.
+  rpc ListOperatingSystems(ListOperatingSystemsRequest) returns (ListOperatingSystemsResponse);
+  // ListServerLocations lists every Location a Server can live in, each with
+  // whether new Servers can be created there now. A Location is offered while
+  // it has capacity that takes new Servers, read live; one that is
+  // not says why in available/unavailable_reason.
+  rpc ListServerLocations(ListServerLocationsRequest) returns (ListServerLocationsResponse);
+
+  // CreateServer creates a Server and starts its build. Billing starts when it
+  // is accepted. FAILED_PRECONDITION when the balance is not positive or the
+  // Organization has not passed its identity check (a pass never runs out);
+  // RESOURCE_EXHAUSTED when
+  // the platform has no room for another Server of that size in the chosen
+  // Location (the message says so and nothing is charged); INVALID_ARGUMENT
+  // for a Location that is unknown or not offered now; NOT_FOUND for an
+  // unknown or no longer offered Operating System or SSH key. There is no limit on the
+  // number of Servers an Organization may have beyond its balance and the
+  // platform's capacity.
+  //
+  // Idempotent on request_id: repeating a call with the same request_id and
+  // the same fields returns the same Server and creates no second one. The
+  // same request_id with different fields is ALREADY_EXISTS.
+  rpc CreateServer(CreateServerRequest) returns (CreateServerResponse);
+  // ListServers lists the Organization's Servers, newest first.
+  rpc ListServers(ListServersRequest) returns (ListServersResponse);
+  rpc GetServer(GetServerRequest) returns (GetServerResponse);
+  // DeleteServer deletes a Server, its disk and its backups, and releases its
+  // /64, for good. Billing stops when the Server is gone. Works at any balance
+  // and in any state but DELETED, unless the Server is quarantined;
+  // idempotent. The response carries the Server in state DELETING.
+  rpc DeleteServer(DeleteServerRequest) returns (DeleteServerResponse);
+
+  // StartServer powers a stopped Server on. Idempotent for a Server that is
+  // running; FAILED_PRECONDITION while it is being created or deleted, or
+  // while it is quarantined.
+  rpc StartServer(StartServerRequest) returns (StartServerResponse);
+  // StopServer powers a Server off: gracefully by default, asking the guest to
+  // shut down, or at once when force is set (the same as pulling the power). A
+  // stopped Server is still billed. Idempotent for a Server that is already
+  // stopped; FAILED_PRECONDITION while it is being created or deleted.
+  rpc StopServer(StopServerRequest) returns (StopServerResponse);
+  // RebootServer asks the guest to restart. FAILED_PRECONDITION unless the
+  // Server is running.
+  rpc RebootServer(RebootServerRequest) returns (RebootServerResponse);
+  // ResizeServer changes a Server's vCPUs, memory and disk. The new size keeps
+  // the size rules in effect (INVALID_ARGUMENT naming the problems, as
+  // QuoteServer does), keeps the Server's tier (a change of tier is
+  // INVALID_ARGUMENT: Shared and Dedicated Servers run on different hosts) and
+  // never shrinks the disk (INVALID_ARGUMENT). A size that needs capacity no
+  // host has free is RESOURCE_EXHAUSTED with a customer sentence. What happens
+  // to the running Server:
+  // - fewer vCPUs or less memory, or Dedicated: it restarts with the new size;
+  // - more vCPUs or memory, Shared: it moves to another host while it runs, or
+  //   restarts with the new size when none has room or prefer_restart is set;
+  //   either way it keeps its address;
+  // - more disk only: grown in place with no restart.
+  // A stopped Server stays stopped and starts with the new size. An hour is
+  // billed at the most expensive size allocated during it: a larger size from
+  // the hour of the resize, a smaller one from the hour after the Server has
+  // it. Only a RUNNING or STOPPED Server can be resized (FAILED_PRECONDITION
+  // otherwise, and while quarantined). Returns once accepted; the Server's
+  // `size` reads the new size from then on.
+  rpc ResizeServer(ResizeServerRequest) returns (ResizeServerResponse);
+
+  // ListSshKeys lists the Organization's saved SSH keys.
+  rpc ListSshKeys(ListSshKeysRequest) returns (ListSshKeysResponse);
+  // CreateSshKey saves a public key. INVALID_ARGUMENT for a key that is not a
+  // valid OpenSSH public key; ALREADY_EXISTS when the Organization already has
+  // a key with that fingerprint.
+  rpc CreateSshKey(CreateSshKeyRequest) returns (CreateSshKeyResponse);
+  // DeleteSshKey removes a saved key. Servers already created with it keep it.
+  // Idempotent.
+  rpc DeleteSshKey(DeleteSshKeyRequest) returns (DeleteSshKeyResponse);
+
+  // GetServerFirewall returns a Server's customer firewall with its revision.
+  rpc GetServerFirewall(GetServerFirewallRequest) returns (GetServerFirewallResponse);
+  // ReplaceServerFirewall replaces the whole customer firewall: every rule in
+  // order, and both defaults. FAILED_PRECONDITION when revision is not the
+  // current one (someone changed the firewall since it was read): read it
+  // again and retry. INVALID_ARGUMENT for a rule that breaks the rules in
+  // ServerFirewallRule, or a list longer than the platform allows. Takes
+  // effect on the running Server without a restart.
+  rpc ReplaceServerFirewall(ReplaceServerFirewallRequest) returns (ReplaceServerFirewallResponse);
+
+  // RequestServerMailPorts asks for outbound mail ports 25 and 465 to be
+  // opened for a Server. Phron answers after a waiting period; until then the
+  // Server's mail_ports reads REQUESTED. Idempotent while a request is
+  // pending; FAILED_PRECONDITION when the ports are already open or the Server
+  // is FAILED, DELETING or DELETED.
+  rpc RequestServerMailPorts(RequestServerMailPortsRequest) returns (RequestServerMailPortsResponse);
+
+  // ListServerBackups lists a Server's saved copies, both kinds: the daily
+  // Backups and the on-demand Snapshots, told apart by ServerBackup.kind.
+  // Newest first. Only copies that have not expired. server_id may name a
+  // DELETED Server of the Organization (ListServers with include_deleted
+  // finds it): its Backups and Snapshots stay listed for seven days after its
+  // deletion and can start a new Server (CreateServerRequest.restore_from_backup_id).
+  rpc ListServerBackups(ListServerBackupsRequest) returns (ListServerBackupsResponse);
+  // CreateServerSnapshot takes an on-demand Snapshot of a running or stopped
+  // Server's disk. The response carries it in state CREATING.
+  // FAILED_PRECONDITION when the Server already has three Snapshots (delete
+  // one first), or is not running or stopped.
+  rpc CreateServerSnapshot(CreateServerSnapshotRequest) returns (CreateServerSnapshotResponse);
+  // DeleteServerSnapshot deletes a Snapshot. FAILED_PRECONDITION for a Backup:
+  // those expire by themselves. Idempotent.
+  rpc DeleteServerSnapshot(DeleteServerSnapshotRequest) returns (DeleteServerSnapshotResponse);
+  // RestoreServer replaces a live Server's disk with the contents of one of its
+  // own Backups or Snapshots. The Server keeps its /64 and its size,
+  // and the backup itself is kept. The call returns once the restore has
+  // started. First a copy of the disk as it is now is taken and waited for (a
+  // ServerBackup of kind PRE_RESTORE: outside the Snapshot cap, kept seven days;
+  // minutes, by disk size), so a restore can be undone; the Server runs while
+  // that is taken. If the copy cannot be taken the restore does not go on and
+  // the Server is left as it was. Then the Server is stopped while its disk is
+  // replaced and started again afterwards if it was running. The Server reads
+  // PROVISIONING for the whole of it. The disk is replaced, not kept: a
+  // restore that fails leaves the Server stopped with no usable disk, and the
+  // customer asks again (the copy is kept). A deleted Server is not restored
+  // in place: its copies start a new Server
+  // (CreateServerRequest.restore_from_backup_id).
+  // FAILED_PRECONDITION unless the backup is READY and the Server is running
+  // or stopped.
+  rpc RestoreServer(RestoreServerRequest) returns (RestoreServerResponse);
+
+  // GetServerTraffic returns a Server's network traffic in hourly buckets
+  // over a time range. An hour with no measurement has no bucket, which is not
+  // the same as zero traffic.
+  rpc GetServerTraffic(GetServerTrafficRequest) returns (GetServerTrafficResponse);
+}
+
+message GetServerPricingRequest {}
+
+message GetServerPricingResponse {
+  optional ServerPrice price = 1;
+  optional ServerSizeRules rules = 2;
+}
+
+message QuoteServerRequest {
+  ServerSize size = 1;
+  // When set, the size is also checked against this Operating System's
+  // minimum disk.
+  optional string operating_system_id = 2;
+  // The Location (Location.id) the Server would live in: availability is
+  // answered for that Location only. Empty: the price and problems are
+  // answered and available is false, asking for a Location. INVALID_ARGUMENT
+  // for an id that is not a Location.
+  string location = 3;
+}
+
+message QuoteServerResponse {
+  // Absent when problems is not empty, or when no Server Price is in effect.
+  optional ServerSizePrice price = 1;
+  repeated ServerSizeProblem problems = 2;
+  // Whether a Server of this size would own its /64 (see Server.own_prefix).
+  bool own_prefix = 3;
+  // Whether a Server of this size can be created now in the Location asked
+  // for. A size that keeps the rules can still be unavailable when no capacity
+  // is free for it there, or when the Location is not offered; the reason says
+  // so in words for the customer and never names a host.
+  bool available = 4;
+  string unavailable_reason = 5;
+}
+
+message ListOperatingSystemsRequest {}
+
+message ListOperatingSystemsResponse {
+  repeated OperatingSystem operating_systems = 1;
+}
+
+message ListServerLocationsRequest {}
+
+message ListServerLocationsResponse {
+  // Every Location, offered or not, in a fixed order (Falkenstein first).
+  repeated Location locations = 1;
+}
+
+message CreateServerRequest {
+  // The customer's name for the Server, 1 to 63 characters.
+  string name = 1;
+  reserved 2;
+  reserved "server_type_id";
+  string operating_system_id = 3;
+  // At least one saved SSH key, so the Server can be logged in to. The keys
+  // are installed at first boot.
+  repeated string ssh_key_ids = 4;
+  // A UUID the caller makes up for this attempt and sends again unchanged on a
+  // retry, so a retry cannot create a second Server. Required. Scoped to the
+  // Organization.
+  string request_id = 5;
+  // The size, which must keep the size rules in effect (INVALID_ARGUMENT
+  // otherwise, naming the problems as QuoteServer does). The Server is billed
+  // under the Server Price in effect at creation.
+  ServerSize size = 6;
+  // Start the new Server from a saved copy: the id of a ServerBackup (a
+  // Backup or a Snapshot) of a DELETED Server of this same Organization
+  // (ListServers with include_deleted finds it; its copies stay for seven days
+  // after the deletion). The new Server is built as usual (its own address, its
+  // own SSH keys, the size above) and takes the copy's disk, so its files are
+  // the copy's and its address is new; it has the Operating System of the
+  // Server the copy came from (this request's operating_system_id is then
+  // ignored). The size's disk must be at least the copy's disk_gib
+  // (INVALID_ARGUMENT otherwise). FAILED_PRECONDITION when the copy's Server
+  // still exists (restore it in place with RestoreServer), when the copy is not
+  // READY, or when a Server made from that Server's copies already exists
+  // (delete it first: a Server's disk can be brought back once at a time).
+  // Empty: a Server from an Operating System, as before.
+  string restore_from_backup_id = 7;
+  // The Location (Location.id) the Server lives in, for good: it is never
+  // moved to another Location, and its disk and host stay there. Required,
+  // and INVALID_ARGUMENT when it is not a Location or not offered now
+  // (ListServerLocations). With restore_from_backup_id, empty means the
+  // Location of the Server the copy came from.
+  string location = 8;
+  // The Workspace (its id) the new Server belongs to, for good: it is fixed
+  // at creation. Empty means the Organization's default Workspace. A Workspace
+  // of another Organization answers NOT_FOUND.
+  string workspace_id = 9;
+  // Cloud-init user data the customer supplies, run once at the Server's first
+  // boot after the platform's own part (the SSH keys, the guest agent and the
+  // hot-plug rule); a `#cloud-config` document of the customer's adds its lists
+  // (packages, runcmd, write_files) to the platform's instead of replacing
+  // them. Plain text, at most 65536 bytes, whose first line is `#cloud-config`,
+  // `#!` (a script), `#cloud-boothook` or `#include` (INVALID_ARGUMENT
+  // otherwise, and for a MIME multipart message or gzip). Empty means none. Not a place for secrets: anyone who can
+  // read the guest's disk can read it. It is never returned by any call, and
+  // it is part of what an idempotent retry must repeat unchanged
+  // (ALREADY_EXISTS when the same request_id arrives with other user data).
+  // cloud-init runs it once per instance, so changing it later has no effect on
+  // a Server that has booted; create a new Server instead.
+  string user_data = 10;
+}
+
+message CreateServerResponse {
+  Server server = 1;
+}
+
+message ListServersRequest {
+  // Include Servers in state DELETED. Off by default.
+  bool include_deleted = 1;
+  // Only this Workspace's Servers; empty means every Workspace of the
+  // Organization. A Workspace of another Organization answers NOT_FOUND.
+  string workspace_id = 2;
+}
+
+message ListServersResponse {
+  repeated Server servers = 1;
+}
+
+message GetServerRequest {
+  string server_id = 1;
+}
+
+message GetServerResponse {
+  Server server = 1;
+}
+
+message DeleteServerRequest {
+  string server_id = 1;
+}
+
+message DeleteServerResponse {
+  Server server = 1;
+}
+
+message StartServerRequest {
+  string server_id = 1;
+}
+
+message StartServerResponse {
+  Server server = 1;
+}
+
+message StopServerRequest {
+  string server_id = 1;
+  // Power off at once instead of asking the guest to shut down. The guest can
+  // lose data it has not written to disk.
+  bool force = 2;
+}
+
+message StopServerResponse {
+  Server server = 1;
+}
+
+message RebootServerRequest {
+  string server_id = 1;
+}
+
+message RebootServerResponse {
+  Server server = 1;
+}
+
+message ResizeServerRequest {
+  string server_id = 1;
+  ServerSize size = 2;
+  // Restart the Server onto the new size instead of moving it live. A live
+  // move of a guest that rewrites its memory faster than the network copies it
+  // can pause the guest for up to (memory GiB / 110 MiB/s); a restart costs a
+  // fixed short outage. Ignored for a Server that is stopped, for a disk-only
+  // change, and for a resize that cannot move live anyway.
+  bool prefer_restart = 3;
+}
+
+message ResizeServerResponse {
+  Server server = 1;
+}
+
+message ListSshKeysRequest {}
+
+message ListSshKeysResponse {
+  repeated SshKey ssh_keys = 1;
+}
+
+message CreateSshKeyRequest {
+  string name = 1;
+  string public_key = 2;
+}
+
+message CreateSshKeyResponse {
+  SshKey ssh_key = 1;
+}
+
+message DeleteSshKeyRequest {
+  string ssh_key_id = 1;
+}
+
+message DeleteSshKeyResponse {
+  string ssh_key_id = 1;
+}
+
+message GetServerFirewallRequest {
+  string server_id = 1;
+}
+
+message GetServerFirewallResponse {
+  ServerFirewall firewall = 1;
+}
+
+message ReplaceServerFirewallRequest {
+  string server_id = 1;
+  // The complete ordered rule list; an empty list removes every rule.
+  repeated ServerFirewallRule rules = 2;
+  // Required.
+  ServerFirewallAction default_inbound_action = 3;
+  // Required.
+  ServerFirewallAction default_outbound_action = 4;
+  // The ServerFirewall.revision these rules were based on.
+  int64 revision = 5;
+}
+
+message ReplaceServerFirewallResponse {
+  // The firewall as stored, with its new revision.
+  ServerFirewall firewall = 1;
+}
+
+message RequestServerMailPortsRequest {
+  string server_id = 1;
+  // What the Server will send mail for, for Phron to read. Required and not
+  // blank.
+  string reason = 2;
+}
+
+message RequestServerMailPortsResponse {
+  Server server = 1;
+}
+
+message ListServerBackupsRequest {
+  string server_id = 1;
+}
+
+message ListServerBackupsResponse {
+  repeated ServerBackup backups = 1;
+  // The limits the platform applies to a Server's copies, so a page says the
+  // same numbers the platform keeps.
+  ServerBackupLimits limits = 2;
+}
+
+message CreateServerSnapshotRequest {
+  string server_id = 1;
+  // The customer's name for the Snapshot, at most 63 characters. Empty: the
+  // platform names it by the time it is taken ("Snapshot 2026-11-19 15:04 UTC").
+  string name = 2;
+}
+
+message CreateServerSnapshotResponse {
+  ServerBackup snapshot = 1;
+}
+
+message DeleteServerSnapshotRequest {
+  string server_id = 1;
+  // The id of a ServerBackup whose kind is SNAPSHOT.
+  string snapshot_id = 2;
+}
+
+message DeleteServerSnapshotResponse {
+  string snapshot_id = 1;
+}
+
+message RestoreServerRequest {
+  string server_id = 1;
+  // The id of a ServerBackup of this same Server, of either kind.
+  string backup_id = 2;
+}
+
+message RestoreServerResponse {
+  Server server = 1;
+}
+
+message GetServerTrafficRequest {
+  string server_id = 1;
+  // The range is [start_time, end_time), rounded outward to whole UTC hours.
+  // INVALID_ARGUMENT when end_time is not after start_time or the range is
+  // longer than the platform serves in one call.
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+}
+
+message GetServerTrafficResponse {
+  // Oldest hour first.
+  repeated ServerTrafficBucket buckets = 1;
+}

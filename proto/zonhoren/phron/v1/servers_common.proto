@@ -1,0 +1,426 @@
+syntax = "proto3";
+
+package zonhoren.phron.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1";
+
+// Types used by ServerService.
+//
+// Money is a decimal string in USD, as everywhere else in this package; sizes
+// are bytes unless a field says GiB; times are UTC.
+//
+// A Server's address is its public IPv6 /64 prefix and nothing else: a Server
+// has no IPv4 address and no separately reserved IPv6 address exists (the /64
+// lives and dies with its Server).
+//
+// The messages carry no secret. An SSH key is public by nature; the Server's
+// own login is the customer's private key, which the platform never sees.
+
+// Where a Server is in its life.
+//
+// A Server's state is its LIFECYCLE and its POWER together. Quarantine (see
+// Server.quarantined) is deliberately not a state: it can hold at any time
+// alongside any non-final state, and releasing it must not lose which state the
+// Server was in.
+enum ServerState {
+  SERVER_STATE_UNSPECIFIED = 0;
+  // Accepted and recorded; capacity is reserved and billing has started, but
+  // nothing is built yet.
+  SERVER_STATE_REQUESTED = 1;
+  // Waiting for the platform to obtain the Server's IPv6 /64. The prefix is
+  // still empty.
+  SERVER_STATE_ORDERING_ADDRESS = 2;
+  // The /64 is known; the disk is being prepared from the Operating System and
+  // the Server is booting for the first time.
+  SERVER_STATE_PROVISIONING = 3;
+  SERVER_STATE_RUNNING = 4;
+  // Powered off. The Server keeps its disk and its /64, and is still billed
+  // in full, because the capacity it needs to start again stays reserved.
+  SERVER_STATE_STOPPED = 5;
+  // The Server was deleted; teardown is in progress. The
+  // disk and the /64 are being released.
+  SERVER_STATE_DELETING = 6;
+  // Gone: the disk and the /64 are released and billing has stopped. Shown
+  // only when a list asks for deleted Servers.
+  SERVER_STATE_DELETED = 7;
+  // Building the Server did not finish, for example when no /64 could be
+  // obtained. Nothing is charged for a Server that failed. The only action it
+  // accepts is DeleteServer, which releases whatever was built.
+  SERVER_STATE_FAILED = 8;
+}
+
+// What the platform sees of a Server's power right now, kept apart from ServerState, which is what was asked for. A Server whose
+// state is RUNNING can still be STARTING (the guest is booting) or
+// NOT_RESPONDING (it did not come up, or stopped answering); one whose state is
+// STOPPED can still be STOPPING. Only set for a Server whose state is RUNNING
+// or STOPPED; UNSPECIFIED for every other state, where the state says it all.
+enum ServerPower {
+  SERVER_POWER_UNSPECIFIED = 0;
+  // Asked to run and not up yet: the guest is booting, or the platform is still
+  // preparing it. Normal for the first minutes after a start or reboot.
+  SERVER_POWER_STARTING = 1;
+  // Up and answering the platform's own checks.
+  SERVER_POWER_RUNNING = 2;
+  // Going down: a stop is finishing or the guest is shutting down.
+  SERVER_POWER_STOPPING = 3;
+  // Powered off.
+  SERVER_POWER_STOPPED = 4;
+  // The Server should be running (or, after a stop, off) and is not, for longer
+  // than a normal start or stop takes. A start, a reboot or a hard stop asks
+  // the platform again.
+  SERVER_POWER_NOT_RESPONDING = 5;
+}
+
+// Which promise a Server's vCPUs carry. All vCPUs of one Server are of one
+// tier.
+enum ServerTier {
+  SERVER_TIER_UNSPECIFIED = 0;
+  // Shared vCPU: shares the host's processor time with other Servers and uses
+  // idle capacity above its share; no guaranteed fraction is promised.
+  SERVER_TIER_SHARED = 1;
+  // Dedicated vCPU: runs on physical cores no other workload uses.
+  SERVER_TIER_DEDICATED = 2;
+}
+
+// Which way a firewall rule looks.
+enum ServerFirewallDirection {
+  SERVER_FIREWALL_DIRECTION_UNSPECIFIED = 0;
+  // Traffic arriving at the Server. A rule's remote prefix is the SOURCE.
+  SERVER_FIREWALL_DIRECTION_INBOUND = 1;
+  // Traffic leaving the Server. A rule's remote prefix is the DESTINATION.
+  SERVER_FIREWALL_DIRECTION_OUTBOUND = 2;
+}
+
+enum ServerFirewallAction {
+  SERVER_FIREWALL_ACTION_UNSPECIFIED = 0;
+  SERVER_FIREWALL_ACTION_ACCEPT = 1;
+  SERVER_FIREWALL_ACTION_DROP = 2;
+}
+
+// Whether a Server may send on outbound mail ports 25 and 465. Every new
+// Server has them closed; they are opened on request after a waiting period.
+// Port 587 is always open.
+enum ServerMailPorts {
+  SERVER_MAIL_PORTS_UNSPECIFIED = 0;
+  SERVER_MAIL_PORTS_CLOSED = 1;
+  // The customer asked for them to be opened; Phron answers after the waiting
+  // period.
+  SERVER_MAIL_PORTS_REQUESTED = 2;
+  SERVER_MAIL_PORTS_OPEN = 3;
+}
+
+// The kinds of saved copy of a Server's disk.
+enum ServerBackupKind {
+  SERVER_BACKUP_KIND_UNSPECIFIED = 0;
+  // Taken automatically every day; the most recent seven are kept and older
+  // ones expire. The customer cannot delete one.
+  SERVER_BACKUP_KIND_BACKUP = 1;
+  // Taken on demand by the customer, and kept until the customer deletes it.
+  SERVER_BACKUP_KIND_SNAPSHOT = 2;
+  // Taken by RestoreServer, of the disk it is about to replace, so a restore
+  // can be undone. It does not count toward the three-Snapshot cap, expires
+  // seven days after it is taken (expires_at is set), and can be restored or
+  // deleted like a Snapshot. Its name is "Before restore".
+  SERVER_BACKUP_KIND_PRE_RESTORE = 3;
+}
+
+enum ServerBackupState {
+  SERVER_BACKUP_STATE_UNSPECIFIED = 0;
+  // Being taken; it cannot be restored yet.
+  SERVER_BACKUP_STATE_CREATING = 1;
+  SERVER_BACKUP_STATE_READY = 2;
+  // Taking it ended without a usable copy; nothing is kept. A Snapshot can be
+  // taken again.
+  SERVER_BACKUP_STATE_FAILED = 3;
+}
+
+// A Server's size, chosen freely within the size rules in effect (there are
+// no named sizes). Memory and disk are in whole GiB.
+message ServerSize {
+  ServerTier tier = 1;
+  int32 vcpus = 2;
+  int32 memory_gib = 3;
+  int32 disk_gib = 4;
+}
+
+// The rate of one unit. Each hour of a Server is charged hourly_usd per unit.
+message ServerUnitRate {
+  string hourly_usd = 1;
+  reserved 2;  // monthly_cap_usd: removed, Phron bills hourly with no monthly cap
+}
+
+// The per-unit rates of a Server Price. Everything a Server costs beyond its
+// units (its address, the overhead of the machine that runs it) is in these
+// rates: there is never a per-Server fee.
+message ServerPrice {
+  ServerUnitRate shared_vcpu = 1;
+  ServerUnitRate dedicated_vcpu = 2;
+  ServerUnitRate memory_gib = 3;
+  ServerUnitRate disk_gib = 4;
+  // Daily backups: a fourth unit, priced per GiB of the Server's DISK (not of
+  // what the copies hold), with an hourly rate like the other
+  // units. It is part of ServerSizePrice and of every hour's Server Debit, so a
+  // Server's price includes its daily backups.
+  ServerUnitRate backup_gib = 5;
+  // Snapshots and Before-restore copies: the price of one GiB (2^30 bytes) of
+  // their logical size held for a month (an hour is charged 1/730 of it), as a
+  // decimal string. Charged hourly in arrears as its own line, by the copies'
+  // logical size; the seven days after a Server is deleted
+  // are free. Not part of ServerSizePrice (it depends on what the customer keeps).
+  string snapshot_gib_monthly_usd = 6;
+  // Outbound traffic above the allowance: the price of one decimal GB (10^9
+  // bytes), as a decimal string. Inbound traffic is free. Charged hourly in
+  // arrears as its own line. Not part of ServerSizePrice.
+  string traffic_out_gb_usd = 7;
+  // Outbound traffic included per Server per UTC calendar month, in decimal GB
+  // (1000 is 1 TB).
+  int32 traffic_allowance_gb = 8;
+}
+
+// The limits a ServerSize must keep. They can change over time, so read them
+// with GetServerPricing rather than hard-coding them.
+message ServerSizeRules {
+  int32 min_shared_vcpus = 1;
+  int32 max_shared_vcpus = 2;
+  int32 min_dedicated_vcpus = 3;
+  int32 max_dedicated_vcpus = 4;
+  // Memory per vCPU, inclusive, in whole GiB.
+  int32 min_memory_gib_per_vcpu = 5;
+  int32 max_memory_gib_per_vcpu = 6;
+  // Total memory, inclusive.
+  int32 min_memory_gib = 7;
+  int32 max_memory_gib = 8;
+  // The smallest disk overall; each Operating System can ask for more
+  // (OperatingSystem.min_disk_gib), and the larger of the two applies.
+  int32 min_disk_gib = 9;
+  int32 max_disk_gib = 10;
+  // From this many vCPUs of the tier on, a Server owns its IPv6 /64 and keeps
+  // it through host maintenance; below it, a Server has one IPv6 address
+  // that can change when it moves host.
+  int32 own_prefix_min_shared_vcpus = 11;
+  int32 own_prefix_min_dedicated_vcpus = 12;
+  // Reserved for platform use; clients can ignore it. A decimal string.
+  string shared_vcpus_per_thread = 13;
+}
+
+// What one size costs under one Server Price: the sum of its units' rates.
+message ServerSizePrice {
+  string hourly_usd = 1;
+  // The daily backups' part of hourly_usd (the Server's disk GiB times the
+  // backup unit's rate). The rest is compute, memory and disk. It is 0 under a
+  // Server Price that does not charge backups.
+  string backup_hourly_usd = 3;
+  reserved 2, 4;  // monthly_cap_usd and backup_monthly_cap_usd: removed (hourly billing only)
+}
+
+// Why a size is refused. field is one of "tier", "vcpus", "memory_gib",
+// "disk_gib"; reason is a sentence for the customer.
+message ServerSizeProblem {
+  string field = 1;
+  string reason = 2;
+}
+
+// The bootable template a Server is created from, such as Ubuntu 24.04.
+message OperatingSystem {
+  // The Operating System's stable name, e.g. "ubuntu-24-04". Opaque to the
+  // customer; pass it back in CreateServerRequest.operating_system_id.
+  string id = 1;
+  string display_name = 2;
+  // The smallest disk a Server can have with this system, in GiB.
+  int32 min_disk_gib = 3;
+  // The user the Server's SSH keys are installed for, the system image's own
+  // default user (e.g. "ubuntu", "debian", "almalinux"). The customer logs in
+  // as this user and uses sudo; root login over SSH is off.
+  string login_user = 4;
+}
+
+// An inclusive range of ports, 1 to 65535.
+message ServerPortRange {
+  int32 first = 1;
+  int32 last = 2;
+}
+
+// One customer firewall rule.
+//
+// ip_protocol is the IP protocol number, 0 to 255, so every protocol the
+// public clouds carry can be named, not only TCP, UDP and ICMP. All of these
+// are allowed: 6 TCP, 17 UDP, 58 ICMPv6, 47 GRE, 50 ESP, 132 SCTP and 4
+// IP-in-IP. Absent means any protocol (0 is a real protocol number, HOPOPT, so
+// the number zero cannot also mean "any").
+//
+// ports narrows a rule to a port range and is valid ONLY when ip_protocol is 6
+// (TCP), 17 (UDP) or 132 (SCTP): any other protocol has no ports, and a rule
+// that sets ports for one, or sets ports with no protocol, is INVALID_ARGUMENT.
+// Absent means every port.
+//
+// remote_prefix is an IPv6 prefix with no bits set beyond its length, e.g.
+// "2001:db8::/32", and is required; "::/0" means any address.
+message ServerFirewallRule {
+  ServerFirewallDirection direction = 1;
+  ServerFirewallAction action = 2;
+  optional int32 ip_protocol = 3;
+  optional ServerPortRange ports = 4;
+  string remote_prefix = 5;
+  // The customer's own note about the rule; may be empty.
+  string description = 6;
+}
+
+// A Server's customer firewall.
+//
+// Rules are evaluated in list order, the first match decides, and a packet
+// that matches no rule gets the default for its direction. A new Server's
+// defaults are both ACCEPT: it is reachable on every protocol until the
+// customer says otherwise.
+//
+// THE PLATFORM'S OWN RULES ARE NOT IN THIS MESSAGE. Traffic to the platform's
+// own network is always dropped (apart from Phron Object Storage's public endpoint) and mail
+// ports 25 and 465 stay closed until opened on request. They sit above every
+// customer rule: the customer cannot see them in a rule list, change them or
+// outrank them with a rule of their own.
+message ServerFirewall {
+  repeated ServerFirewallRule rules = 1;
+  ServerFirewallAction default_inbound_action = 2;
+  ServerFirewallAction default_outbound_action = 3;
+  // Counts every successful replacement, starting at 0 for a new Server.
+  // ReplaceServerFirewall needs the revision it was based on.
+  int64 revision = 4;
+  // The revision the Server's network actually enforces, as the platform last
+  // read it. A saved firewall (revision) is in force once this
+  // is not below it; until then the list is saved but not yet applied, so a
+  // client shows "applying", never "active". 0 until the first reading.
+  int64 applied_revision = 5;
+}
+
+// An SSH public key an Organization has saved. Any member of the Organization
+// can use it when creating a Server. It is copied into a Server's first boot
+// only: deleting a key does not remove it from a Server that already has it.
+message SshKey {
+  string id = 1;
+  string name = 2;
+  // The public key in the OpenSSH single-line format.
+  string public_key = 3;
+  // "SHA256:" followed by the unpadded base64 digest, as OpenSSH prints it.
+  string fingerprint = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// A Server.
+message Server {
+  string id = 1;
+  string name = 2;
+  ServerState state = 3;
+  // True while the Server is under quarantine: its network traffic is
+  // stopped, and it can still be running or stopped underneath. While it is
+  // set the Server is read-only (see ServerService). The reason is not part of
+  // this API; contact support.
+  bool quarantined = 4;
+  reserved 5, 7;
+  reserved "server_type";
+  OperatingSystem operating_system = 6;
+  // The Server's IPv6 prefix: its own /64 (e.g. "2001:db8:1:2::/64") when
+  // own_prefix is true, otherwise one address as a /128. Empty until the
+  // platform has obtained it (state REQUESTED and ORDERING_ADDRESS).
+  string ipv6_prefix = 8;
+  // The SSH keys the Server was created with, as they were then.
+  repeated string ssh_key_ids = 9;
+  google.protobuf.Timestamp created_at = 10;
+  // Set once the Server is DELETED.
+  optional google.protobuf.Timestamp deleted_at = 11;
+  // Outbound mail ports 25 and 465: closed until opened on request.
+  ServerMailPorts mail_ports = 12;
+  ServerSize size = 13;
+  // True when the Server owns its /64 and keeps it through host maintenance;
+  // false when it has one address that can change when it moves host.
+  bool own_prefix = 15;
+  // What this Server is billed at: its size under the Server Price version it
+  // is on, which can be older than the one in effect now.
+  ServerSizePrice price = 14;
+  // The one address to log in at: the Server's own address inside its /64
+  // ("<prefix>::10") when own_prefix is true, otherwise the address of its
+  // /128. Empty until ipv6_prefix is known. `ssh <login_user>@<ssh_address>`.
+  string ssh_address = 16;
+  // What the platform sees of the Server's power, as opposed to `state`, which
+  // is what was asked for: a Server started a moment ago has state RUNNING and
+  // power STARTING. A guest that shuts itself down moves `state` to STOPPED
+  // after a few minutes. UNSPECIFIED unless state is RUNNING or STOPPED.
+  ServerPower power = 17;
+  // When the platform last read the Server's power. Absent
+  // before the first reading.
+  optional google.protobuf.Timestamp power_observed_at = 18;
+  // True while the Server's disk is being replaced by RestoreServer: state
+  // reads PROVISIONING for the whole restore (minutes to hours by disk size)
+  // and this tells that restore from a first build. False for a Server being
+  // built the first time, and once the restore ends.
+  bool restoring = 19;
+  // The Location (Location.id, "fsn1" or "hel1") the Server lives in, chosen
+  // at creation and never changed. ListServerLocations names it.
+  string location = 20;
+  // The Workspace (its id) the Server belongs to.
+  string workspace_id = 21;
+  // True while the guest does not yet have the size the Server was resized to
+  // (a live move still running, or a restart on its way): `size` and `price`
+  // are the new ones, the guest catches up within minutes.
+  bool resizing = 22;
+  // True when the guest can take its new size only by restarting and the
+  // resize was not asked to restart (ResizeServerRequest.prefer_restart): the
+  // customer restarts the Server (RebootServer is a soft reboot and does not
+  // do it; stop and start does) to finish the resize.
+  bool needs_restart = 23;
+  // The processor the Server runs on, by its display name ("Intel Xeon Gold
+  // 5412U"). A Server keeps its processor family for its whole life, through
+  // every resize and move. Empty until the platform has placed the Server,
+  // and briefly for a Server whose family is not yet recorded.
+  string cpu_family_name = 24;
+  // True when the Server's disk is no longer there and the platform marked the
+  // Server lost: it has no power and cannot be started, charging stopped at
+  // lost_at (nothing earned before it is changed), and the customer can delete
+  // it or restore a saved copy. state stays RUNNING or STOPPED.
+  bool lost = 25;
+  // When the platform found the disk gone. Set exactly when lost is true.
+  optional google.protobuf.Timestamp lost_at = 26;
+}
+
+// The limits on a Server's saved copies.
+message ServerBackupLimits {
+  // How many daily Backups are kept: the most recent ones; older ones expire.
+  int32 daily_backups_kept = 1;
+  // Most Snapshots a Server may hold at once. A "Before restore" copy does
+  // not count toward it.
+  int32 max_snapshots = 2;
+  // Days a deleted Server's copies, and a "Before restore" copy, are kept.
+  int32 days_kept_after_deletion = 3;
+}
+
+// A saved copy of a Server's disk: a daily Backup or an on-demand Snapshot.
+message ServerBackup {
+  string id = 1;
+  string server_id = 2;
+  ServerBackupKind kind = 3;
+  ServerBackupState state = 4;
+  // The customer's name for a Snapshot; empty for a Backup.
+  string name = 5;
+  // Stored size, once known. Recorded for the customer to see; not charged.
+  optional int64 size_bytes = 6;
+  google.protobuf.Timestamp created_at = 7;
+  // When a Backup expires, in line with the seven kept; absent for a Snapshot
+  // of a Server that exists, which does not expire. A Snapshot of a DELETED
+  // Server has one too (seven days after the deletion).
+  optional google.protobuf.Timestamp expires_at = 8;
+  // The size of the disk the copy holds, in GiB: the smallest disk a Server
+  // started from it can have. Zero when not known.
+  int32 disk_gib = 9;
+}
+
+// One hour of a Server's network traffic. "In" is traffic the Server received
+// and "out" is traffic it sent, counted at the Server's own network
+// interface. Recorded for the customer to see; not charged.
+message ServerTrafficBucket {
+  // Start of the UTC hour (minute, second and fraction zero).
+  google.protobuf.Timestamp hour_start = 1;
+  int64 bytes_in = 2;
+  int64 bytes_out = 3;
+  int64 packets_in = 4;
+  int64 packets_out = 5;
+}

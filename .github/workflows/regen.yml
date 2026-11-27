@@ -1,0 +1,31 @@
+# Regenerates gen/, go.mod and go.sum and prints them as a tarball in the job
+# log, for when the change cannot be generated on a developer workstation.
+# Push a branch named regen/<anything> (or dispatch this workflow), then decode
+# the block between the markers from the log (README, "Regenerating").
+name: regen
+
+on:
+  push:
+    branches: ["regen/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regen:
+    runs-on: arc-runner-set-phron-net-gvisor-8c
+    steps:
+      - uses: actions/checkout@v7
+      - name: Put the baked Go on PATH
+        run: echo "/usr/local/share/go/1.27.3/bin" >> "$GITHUB_PATH"
+      - name: Regenerate
+        run: ./scripts/generate.sh
+      - name: Print the result
+        run: |
+          tar czf "$RUNNER_TEMP/gen.tgz" gen go.mod go.sum
+          sha256sum "$RUNNER_TEMP/gen.tgz"
+          echo "-----BEGIN GEN-----"
+          base64 -w 0 "$RUNNER_TEMP/gen.tgz" | fold -w 1000
+          echo
+          echo "-----END GEN-----"

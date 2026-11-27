@@ -1,0 +1,29 @@
+syntax = "proto3";
+
+package zonhoren.phron.v1;
+
+option go_package = "github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1";
+
+// A Location: the site a Server or an Organization's Object Storage
+// lives in, Falkenstein in Germany or Helsinki in Finland. The customer picks
+// it when creating a Server and when starting Object Storage, and it never
+// changes afterwards: nothing of a Server or of Object Storage (its disk, its
+// data) is ever placed in another Location. Moving between
+// Locations is a copy the customer makes.
+message Location {
+  // The stable id, "fsn1" or "hel1". Pass it back in
+  // CreateServerRequest.location, QuoteServerRequest.location and
+  // CreateStorageBucketRequest.location.
+  string id = 1;
+  // The city, for display: "Falkenstein" or "Helsinki".
+  string name = 2;
+  // The country, for display: "Germany" or "Finland".
+  string country = 3;
+  // Whether something new can be created in this Location now. For Servers a
+  // Location is offered while it has capacity for new Servers; for Object
+  // Storage, while the platform offers storage there.
+  bool available = 4;
+  // Why not, in words for the customer, when available is false. Never names
+  // a host or a piece of hardware.
+  string unavailable_reason = 5;
+}
