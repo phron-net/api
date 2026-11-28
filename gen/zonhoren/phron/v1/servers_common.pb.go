@@ -508,6 +508,393 @@ func (ServerBackupState) EnumDescriptor() ([]byte, []int) {
 	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{7}
 }
 
+// The states of a Custom Operating System.
+type CustomOperatingSystemState int32
+
+const (
+	CustomOperatingSystemState_CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED CustomOperatingSystemState = 0
+	// The disk is being copied from its source (a Snapshot, an object in a
+	// bucket, or another Custom Operating System). A Server cannot be created
+	// from it yet.
+	CustomOperatingSystemState_CUSTOM_OPERATING_SYSTEM_STATE_IMPORTING CustomOperatingSystemState = 1
+	CustomOperatingSystemState_CUSTOM_OPERATING_SYSTEM_STATE_READY     CustomOperatingSystemState = 2
+	// The import ended without a usable disk; nothing is kept and nothing more is
+	// billed. failure_reason says why. Delete it and try again.
+	CustomOperatingSystemState_CUSTOM_OPERATING_SYSTEM_STATE_FAILED CustomOperatingSystemState = 3
+)
+
+// Enum value maps for CustomOperatingSystemState.
+var (
+	CustomOperatingSystemState_name = map[int32]string{
+		0: "CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED",
+		1: "CUSTOM_OPERATING_SYSTEM_STATE_IMPORTING",
+		2: "CUSTOM_OPERATING_SYSTEM_STATE_READY",
+		3: "CUSTOM_OPERATING_SYSTEM_STATE_FAILED",
+	}
+	CustomOperatingSystemState_value = map[string]int32{
+		"CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED": 0,
+		"CUSTOM_OPERATING_SYSTEM_STATE_IMPORTING":   1,
+		"CUSTOM_OPERATING_SYSTEM_STATE_READY":       2,
+		"CUSTOM_OPERATING_SYSTEM_STATE_FAILED":      3,
+	}
+)
+
+func (x CustomOperatingSystemState) Enum() *CustomOperatingSystemState {
+	p := new(CustomOperatingSystemState)
+	*p = x
+	return p
+}
+
+func (x CustomOperatingSystemState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CustomOperatingSystemState) Descriptor() protoreflect.EnumDescriptor {
+	return file_zonhoren_phron_v1_servers_common_proto_enumTypes[8].Descriptor()
+}
+
+func (CustomOperatingSystemState) Type() protoreflect.EnumType {
+	return &file_zonhoren_phron_v1_servers_common_proto_enumTypes[8]
+}
+
+func (x CustomOperatingSystemState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CustomOperatingSystemState.Descriptor instead.
+func (CustomOperatingSystemState) EnumDescriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{8}
+}
+
+// A Snapshot as the source of a Custom Operating System.
+type CustomOperatingSystemSnapshotSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Server the Snapshot was taken of. The Server may be DELETED while its
+	// copies are still kept (seven days).
+	ServerId string `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
+	// The id of a ServerBackup of that Server whose kind is SNAPSHOT and whose
+	// state is READY.
+	SnapshotId    string `protobuf:"bytes,2,opt,name=snapshot_id,json=snapshotId,proto3" json:"snapshot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomOperatingSystemSnapshotSource) Reset() {
+	*x = CustomOperatingSystemSnapshotSource{}
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomOperatingSystemSnapshotSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomOperatingSystemSnapshotSource) ProtoMessage() {}
+
+func (x *CustomOperatingSystemSnapshotSource) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomOperatingSystemSnapshotSource.ProtoReflect.Descriptor instead.
+func (*CustomOperatingSystemSnapshotSource) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *CustomOperatingSystemSnapshotSource) GetServerId() string {
+	if x != nil {
+		return x.ServerId
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystemSnapshotSource) GetSnapshotId() string {
+	if x != nil {
+		return x.SnapshotId
+	}
+	return ""
+}
+
+// An object in one of the Organization's own Object Storage buckets as the
+// source of a Custom Operating System. Only an object of the caller's own
+// Organization can be named: there is no URL source.
+type CustomOperatingSystemBucketSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bucket's name, as StorageService lists it.
+	Bucket string `protobuf:"bytes,1,opt,name=bucket,proto3" json:"bucket,omitempty"`
+	// The object's key in that bucket.
+	ObjectKey     string `protobuf:"bytes,2,opt,name=object_key,json=objectKey,proto3" json:"object_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomOperatingSystemBucketSource) Reset() {
+	*x = CustomOperatingSystemBucketSource{}
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomOperatingSystemBucketSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomOperatingSystemBucketSource) ProtoMessage() {}
+
+func (x *CustomOperatingSystemBucketSource) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomOperatingSystemBucketSource.ProtoReflect.Descriptor instead.
+func (*CustomOperatingSystemBucketSource) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *CustomOperatingSystemBucketSource) GetBucket() string {
+	if x != nil {
+		return x.Bucket
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystemBucketSource) GetObjectKey() string {
+	if x != nil {
+		return x.ObjectKey
+	}
+	return ""
+}
+
+// A bootable disk the customer brought or saved, in one Location of one
+// Workspace, that Servers of that Workspace can be created from next to the
+// platform's Operating Systems. It is billed by its stored GiB for as long as
+// it exists, at the Snapshot rate.
+type CustomOperatingSystem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The Custom Operating System's id; pass it back in
+	// CreateServerRequest.custom_operating_system_id.
+	Id          string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// The Workspace it belongs to, for good.
+	WorkspaceId string                     `protobuf:"bytes,4,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	State       CustomOperatingSystemState `protobuf:"varint,5,opt,name=state,proto3,enum=zonhoren.phron.v1.CustomOperatingSystemState" json:"state,omitempty"`
+	// Why the import failed, in a sentence; empty unless FAILED.
+	FailureReason string `protobuf:"bytes,6,opt,name=failure_reason,json=failureReason,proto3" json:"failure_reason,omitempty"`
+	// Where the disk came from. Exactly one is set.
+	//
+	// Types that are valid to be assigned to Source:
+	//
+	//	*CustomOperatingSystem_Snapshot
+	//	*CustomOperatingSystem_BucketObject
+	//	*CustomOperatingSystem_CustomOperatingSystemId
+	Source isCustomOperatingSystem_Source `protobuf_oneof:"source"`
+	// The disk's size in bytes: the smallest disk a Server created from it can
+	// have is min_disk_gib. Zero until the import knows it.
+	SizeBytes int64 `protobuf:"varint,10,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	// The smallest disk, in GiB, a Server created from it can have.
+	MinDiskGib int32 `protobuf:"varint,11,opt,name=min_disk_gib,json=minDiskGib,proto3" json:"min_disk_gib,omitempty"`
+	// The Location (Location.id) it is stored in. A Server created from it lives
+	// in this Location: copy it to use another.
+	Location string `protobuf:"bytes,12,opt,name=location,proto3" json:"location,omitempty"`
+	// Whether the customer says the system runs cloud-init, so the platform's
+	// first-boot part (SSH keys, hostname, network) can be applied. Without it
+	// the Server boots the disk as it is, with no SSH key installed.
+	CloudInit bool `protobuf:"varint,13,opt,name=cloud_init,json=cloudInit,proto3" json:"cloud_init,omitempty"`
+	// The user the SSH keys are installed for when cloud_init is set (the
+	// system's own default user), and the user the console shows for login.
+	LoginUser     string                 `protobuf:"bytes,14,opt,name=login_user,json=loginUser,proto3" json:"login_user,omitempty"`
+	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CustomOperatingSystem) Reset() {
+	*x = CustomOperatingSystem{}
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CustomOperatingSystem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CustomOperatingSystem) ProtoMessage() {}
+
+func (x *CustomOperatingSystem) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CustomOperatingSystem.ProtoReflect.Descriptor instead.
+func (*CustomOperatingSystem) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *CustomOperatingSystem) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetState() CustomOperatingSystemState {
+	if x != nil {
+		return x.State
+	}
+	return CustomOperatingSystemState_CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED
+}
+
+func (x *CustomOperatingSystem) GetFailureReason() string {
+	if x != nil {
+		return x.FailureReason
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetSource() isCustomOperatingSystem_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *CustomOperatingSystem) GetSnapshot() *CustomOperatingSystemSnapshotSource {
+	if x != nil {
+		if x, ok := x.Source.(*CustomOperatingSystem_Snapshot); ok {
+			return x.Snapshot
+		}
+	}
+	return nil
+}
+
+func (x *CustomOperatingSystem) GetBucketObject() *CustomOperatingSystemBucketSource {
+	if x != nil {
+		if x, ok := x.Source.(*CustomOperatingSystem_BucketObject); ok {
+			return x.BucketObject
+		}
+	}
+	return nil
+}
+
+func (x *CustomOperatingSystem) GetCustomOperatingSystemId() string {
+	if x != nil {
+		if x, ok := x.Source.(*CustomOperatingSystem_CustomOperatingSystemId); ok {
+			return x.CustomOperatingSystemId
+		}
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *CustomOperatingSystem) GetMinDiskGib() int32 {
+	if x != nil {
+		return x.MinDiskGib
+	}
+	return 0
+}
+
+func (x *CustomOperatingSystem) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetCloudInit() bool {
+	if x != nil {
+		return x.CloudInit
+	}
+	return false
+}
+
+func (x *CustomOperatingSystem) GetLoginUser() string {
+	if x != nil {
+		return x.LoginUser
+	}
+	return ""
+}
+
+func (x *CustomOperatingSystem) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+type isCustomOperatingSystem_Source interface {
+	isCustomOperatingSystem_Source()
+}
+
+type CustomOperatingSystem_Snapshot struct {
+	Snapshot *CustomOperatingSystemSnapshotSource `protobuf:"bytes,7,opt,name=snapshot,proto3,oneof"`
+}
+
+type CustomOperatingSystem_BucketObject struct {
+	BucketObject *CustomOperatingSystemBucketSource `protobuf:"bytes,8,opt,name=bucket_object,json=bucketObject,proto3,oneof"`
+}
+
+type CustomOperatingSystem_CustomOperatingSystemId struct {
+	// The id of the Custom Operating System this one is a copy of.
+	CustomOperatingSystemId string `protobuf:"bytes,9,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3,oneof"`
+}
+
+func (*CustomOperatingSystem_Snapshot) isCustomOperatingSystem_Source() {}
+
+func (*CustomOperatingSystem_BucketObject) isCustomOperatingSystem_Source() {}
+
+func (*CustomOperatingSystem_CustomOperatingSystemId) isCustomOperatingSystem_Source() {}
+
 // A Server's size, chosen freely within the size rules in effect (there are
 // no named sizes). Memory and disk are in whole GiB.
 type ServerSize struct {
@@ -522,7 +909,7 @@ type ServerSize struct {
 
 func (x *ServerSize) Reset() {
 	*x = ServerSize{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[0]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +921,7 @@ func (x *ServerSize) String() string {
 func (*ServerSize) ProtoMessage() {}
 
 func (x *ServerSize) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[0]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +934,7 @@ func (x *ServerSize) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerSize.ProtoReflect.Descriptor instead.
 func (*ServerSize) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{0}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ServerSize) GetTier() ServerTier {
@@ -588,7 +975,7 @@ type ServerUnitRate struct {
 
 func (x *ServerUnitRate) Reset() {
 	*x = ServerUnitRate{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[1]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -600,7 +987,7 @@ func (x *ServerUnitRate) String() string {
 func (*ServerUnitRate) ProtoMessage() {}
 
 func (x *ServerUnitRate) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[1]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -613,7 +1000,7 @@ func (x *ServerUnitRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerUnitRate.ProtoReflect.Descriptor instead.
 func (*ServerUnitRate) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{1}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *ServerUnitRate) GetHourlyUsd() string {
@@ -656,7 +1043,7 @@ type ServerPrice struct {
 
 func (x *ServerPrice) Reset() {
 	*x = ServerPrice{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[2]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -668,7 +1055,7 @@ func (x *ServerPrice) String() string {
 func (*ServerPrice) ProtoMessage() {}
 
 func (x *ServerPrice) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[2]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -681,7 +1068,7 @@ func (x *ServerPrice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPrice.ProtoReflect.Descriptor instead.
 func (*ServerPrice) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{2}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *ServerPrice) GetSharedVcpu() *ServerUnitRate {
@@ -771,7 +1158,7 @@ type ServerSizeRules struct {
 
 func (x *ServerSizeRules) Reset() {
 	*x = ServerSizeRules{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[3]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +1170,7 @@ func (x *ServerSizeRules) String() string {
 func (*ServerSizeRules) ProtoMessage() {}
 
 func (x *ServerSizeRules) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[3]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -796,7 +1183,7 @@ func (x *ServerSizeRules) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerSizeRules.ProtoReflect.Descriptor instead.
 func (*ServerSizeRules) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{3}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ServerSizeRules) GetMinSharedVcpus() int32 {
@@ -904,7 +1291,7 @@ type ServerSizePrice struct {
 
 func (x *ServerSizePrice) Reset() {
 	*x = ServerSizePrice{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[4]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -916,7 +1303,7 @@ func (x *ServerSizePrice) String() string {
 func (*ServerSizePrice) ProtoMessage() {}
 
 func (x *ServerSizePrice) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[4]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -929,7 +1316,7 @@ func (x *ServerSizePrice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerSizePrice.ProtoReflect.Descriptor instead.
 func (*ServerSizePrice) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{4}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ServerSizePrice) GetHourlyUsd() string {
@@ -958,7 +1345,7 @@ type ServerSizeProblem struct {
 
 func (x *ServerSizeProblem) Reset() {
 	*x = ServerSizeProblem{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[5]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -970,7 +1357,7 @@ func (x *ServerSizeProblem) String() string {
 func (*ServerSizeProblem) ProtoMessage() {}
 
 func (x *ServerSizeProblem) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[5]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -983,7 +1370,7 @@ func (x *ServerSizeProblem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerSizeProblem.ProtoReflect.Descriptor instead.
 func (*ServerSizeProblem) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{5}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ServerSizeProblem) GetField() string {
@@ -1019,7 +1406,7 @@ type OperatingSystem struct {
 
 func (x *OperatingSystem) Reset() {
 	*x = OperatingSystem{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[6]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1031,7 +1418,7 @@ func (x *OperatingSystem) String() string {
 func (*OperatingSystem) ProtoMessage() {}
 
 func (x *OperatingSystem) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[6]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1044,7 +1431,7 @@ func (x *OperatingSystem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperatingSystem.ProtoReflect.Descriptor instead.
 func (*OperatingSystem) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{6}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OperatingSystem) GetId() string {
@@ -1086,7 +1473,7 @@ type ServerPortRange struct {
 
 func (x *ServerPortRange) Reset() {
 	*x = ServerPortRange{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[7]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1098,7 +1485,7 @@ func (x *ServerPortRange) String() string {
 func (*ServerPortRange) ProtoMessage() {}
 
 func (x *ServerPortRange) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[7]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1111,7 +1498,7 @@ func (x *ServerPortRange) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerPortRange.ProtoReflect.Descriptor instead.
 func (*ServerPortRange) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{7}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ServerPortRange) GetFirst() int32 {
@@ -1158,7 +1545,7 @@ type ServerFirewallRule struct {
 
 func (x *ServerFirewallRule) Reset() {
 	*x = ServerFirewallRule{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[8]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1170,7 +1557,7 @@ func (x *ServerFirewallRule) String() string {
 func (*ServerFirewallRule) ProtoMessage() {}
 
 func (x *ServerFirewallRule) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[8]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1183,7 +1570,7 @@ func (x *ServerFirewallRule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerFirewallRule.ProtoReflect.Descriptor instead.
 func (*ServerFirewallRule) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{8}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ServerFirewallRule) GetDirection() ServerFirewallDirection {
@@ -1259,7 +1646,7 @@ type ServerFirewall struct {
 
 func (x *ServerFirewall) Reset() {
 	*x = ServerFirewall{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[9]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1271,7 +1658,7 @@ func (x *ServerFirewall) String() string {
 func (*ServerFirewall) ProtoMessage() {}
 
 func (x *ServerFirewall) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[9]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1284,7 +1671,7 @@ func (x *ServerFirewall) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerFirewall.ProtoReflect.Descriptor instead.
 func (*ServerFirewall) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{9}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ServerFirewall) GetRules() []*ServerFirewallRule {
@@ -1340,7 +1727,7 @@ type SshKey struct {
 
 func (x *SshKey) Reset() {
 	*x = SshKey{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[10]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1352,7 +1739,7 @@ func (x *SshKey) String() string {
 func (*SshKey) ProtoMessage() {}
 
 func (x *SshKey) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[10]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1365,7 +1752,7 @@ func (x *SshKey) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SshKey.ProtoReflect.Descriptor instead.
 func (*SshKey) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{10}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *SshKey) GetId() string {
@@ -1482,7 +1869,7 @@ type Server struct {
 
 func (x *Server) Reset() {
 	*x = Server{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[11]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1494,7 +1881,7 @@ func (x *Server) String() string {
 func (*Server) ProtoMessage() {}
 
 func (x *Server) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[11]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1507,7 +1894,7 @@ func (x *Server) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Server.ProtoReflect.Descriptor instead.
 func (*Server) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{11}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Server) GetId() string {
@@ -1694,7 +2081,7 @@ type ServerBackupLimits struct {
 
 func (x *ServerBackupLimits) Reset() {
 	*x = ServerBackupLimits{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[12]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1706,7 +2093,7 @@ func (x *ServerBackupLimits) String() string {
 func (*ServerBackupLimits) ProtoMessage() {}
 
 func (x *ServerBackupLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[12]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1719,7 +2106,7 @@ func (x *ServerBackupLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerBackupLimits.ProtoReflect.Descriptor instead.
 func (*ServerBackupLimits) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{12}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ServerBackupLimits) GetDailyBackupsKept() int32 {
@@ -1768,7 +2155,7 @@ type ServerBackup struct {
 
 func (x *ServerBackup) Reset() {
 	*x = ServerBackup{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[13]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1780,7 +2167,7 @@ func (x *ServerBackup) String() string {
 func (*ServerBackup) ProtoMessage() {}
 
 func (x *ServerBackup) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[13]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1793,7 +2180,7 @@ func (x *ServerBackup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerBackup.ProtoReflect.Descriptor instead.
 func (*ServerBackup) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{13}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ServerBackup) GetId() string {
@@ -1876,7 +2263,7 @@ type ServerTrafficBucket struct {
 
 func (x *ServerTrafficBucket) Reset() {
 	*x = ServerTrafficBucket{}
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[14]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1888,7 +2275,7 @@ func (x *ServerTrafficBucket) String() string {
 func (*ServerTrafficBucket) ProtoMessage() {}
 
 func (x *ServerTrafficBucket) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[14]
+	mi := &file_zonhoren_phron_v1_servers_common_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1901,7 +2288,7 @@ func (x *ServerTrafficBucket) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ServerTrafficBucket.ProtoReflect.Descriptor instead.
 func (*ServerTrafficBucket) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{14}
+	return file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ServerTrafficBucket) GetHourStart() *timestamppb.Timestamp {
@@ -1943,7 +2330,38 @@ var File_zonhoren_phron_v1_servers_common_proto protoreflect.FileDescriptor
 
 const file_zonhoren_phron_v1_servers_common_proto_rawDesc = "" +
 	"\n" +
-	"&zonhoren/phron/v1/servers_common.proto\x12\x11zonhoren.phron.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8f\x01\n" +
+	"&zonhoren/phron/v1/servers_common.proto\x12\x11zonhoren.phron.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"c\n" +
+	"#CustomOperatingSystemSnapshotSource\x12\x1b\n" +
+	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x1f\n" +
+	"\vsnapshot_id\x18\x02 \x01(\tR\n" +
+	"snapshotId\"Z\n" +
+	"!CustomOperatingSystemBucketSource\x12\x16\n" +
+	"\x06bucket\x18\x01 \x01(\tR\x06bucket\x12\x1d\n" +
+	"\n" +
+	"object_key\x18\x02 \x01(\tR\tobjectKey\"\xbe\x05\n" +
+	"\x15CustomOperatingSystem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12!\n" +
+	"\fworkspace_id\x18\x04 \x01(\tR\vworkspaceId\x12C\n" +
+	"\x05state\x18\x05 \x01(\x0e2-.zonhoren.phron.v1.CustomOperatingSystemStateR\x05state\x12%\n" +
+	"\x0efailure_reason\x18\x06 \x01(\tR\rfailureReason\x12T\n" +
+	"\bsnapshot\x18\a \x01(\v26.zonhoren.phron.v1.CustomOperatingSystemSnapshotSourceH\x00R\bsnapshot\x12[\n" +
+	"\rbucket_object\x18\b \x01(\v24.zonhoren.phron.v1.CustomOperatingSystemBucketSourceH\x00R\fbucketObject\x12=\n" +
+	"\x1acustom_operating_system_id\x18\t \x01(\tH\x00R\x17customOperatingSystemId\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\n" +
+	" \x01(\x03R\tsizeBytes\x12 \n" +
+	"\fmin_disk_gib\x18\v \x01(\x05R\n" +
+	"minDiskGib\x12\x1a\n" +
+	"\blocation\x18\f \x01(\tR\blocation\x12\x1d\n" +
+	"\n" +
+	"cloud_init\x18\r \x01(\bR\tcloudInit\x12\x1d\n" +
+	"\n" +
+	"login_user\x18\x0e \x01(\tR\tloginUser\x129\n" +
+	"\n" +
+	"created_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAtB\b\n" +
+	"\x06source\"\x8f\x01\n" +
 	"\n" +
 	"ServerSize\x121\n" +
 	"\x04tier\x18\x01 \x01(\x0e2\x1d.zonhoren.phron.v1.ServerTierR\x04tier\x12\x14\n" +
@@ -2132,7 +2550,12 @@ const file_zonhoren_phron_v1_servers_common_proto_rawDesc = "" +
 	"\x1fSERVER_BACKUP_STATE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cSERVER_BACKUP_STATE_CREATING\x10\x01\x12\x1d\n" +
 	"\x19SERVER_BACKUP_STATE_READY\x10\x02\x12\x1e\n" +
-	"\x1aSERVER_BACKUP_STATE_FAILED\x10\x03B8Z6github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1b\x06proto3"
+	"\x1aSERVER_BACKUP_STATE_FAILED\x10\x03*\xcb\x01\n" +
+	"\x1aCustomOperatingSystemState\x12-\n" +
+	")CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED\x10\x00\x12+\n" +
+	"'CUSTOM_OPERATING_SYSTEM_STATE_IMPORTING\x10\x01\x12'\n" +
+	"#CUSTOM_OPERATING_SYSTEM_STATE_READY\x10\x02\x12(\n" +
+	"$CUSTOM_OPERATING_SYSTEM_STATE_FAILED\x10\x03B8Z6github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1b\x06proto3"
 
 var (
 	file_zonhoren_phron_v1_servers_common_proto_rawDescOnce sync.Once
@@ -2146,68 +2569,76 @@ func file_zonhoren_phron_v1_servers_common_proto_rawDescGZIP() []byte {
 	return file_zonhoren_phron_v1_servers_common_proto_rawDescData
 }
 
-var file_zonhoren_phron_v1_servers_common_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_zonhoren_phron_v1_servers_common_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_zonhoren_phron_v1_servers_common_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
+var file_zonhoren_phron_v1_servers_common_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_zonhoren_phron_v1_servers_common_proto_goTypes = []any{
-	(ServerState)(0),              // 0: zonhoren.phron.v1.ServerState
-	(ServerPower)(0),              // 1: zonhoren.phron.v1.ServerPower
-	(ServerTier)(0),               // 2: zonhoren.phron.v1.ServerTier
-	(ServerFirewallDirection)(0),  // 3: zonhoren.phron.v1.ServerFirewallDirection
-	(ServerFirewallAction)(0),     // 4: zonhoren.phron.v1.ServerFirewallAction
-	(ServerMailPorts)(0),          // 5: zonhoren.phron.v1.ServerMailPorts
-	(ServerBackupKind)(0),         // 6: zonhoren.phron.v1.ServerBackupKind
-	(ServerBackupState)(0),        // 7: zonhoren.phron.v1.ServerBackupState
-	(*ServerSize)(nil),            // 8: zonhoren.phron.v1.ServerSize
-	(*ServerUnitRate)(nil),        // 9: zonhoren.phron.v1.ServerUnitRate
-	(*ServerPrice)(nil),           // 10: zonhoren.phron.v1.ServerPrice
-	(*ServerSizeRules)(nil),       // 11: zonhoren.phron.v1.ServerSizeRules
-	(*ServerSizePrice)(nil),       // 12: zonhoren.phron.v1.ServerSizePrice
-	(*ServerSizeProblem)(nil),     // 13: zonhoren.phron.v1.ServerSizeProblem
-	(*OperatingSystem)(nil),       // 14: zonhoren.phron.v1.OperatingSystem
-	(*ServerPortRange)(nil),       // 15: zonhoren.phron.v1.ServerPortRange
-	(*ServerFirewallRule)(nil),    // 16: zonhoren.phron.v1.ServerFirewallRule
-	(*ServerFirewall)(nil),        // 17: zonhoren.phron.v1.ServerFirewall
-	(*SshKey)(nil),                // 18: zonhoren.phron.v1.SshKey
-	(*Server)(nil),                // 19: zonhoren.phron.v1.Server
-	(*ServerBackupLimits)(nil),    // 20: zonhoren.phron.v1.ServerBackupLimits
-	(*ServerBackup)(nil),          // 21: zonhoren.phron.v1.ServerBackup
-	(*ServerTrafficBucket)(nil),   // 22: zonhoren.phron.v1.ServerTrafficBucket
-	(*timestamppb.Timestamp)(nil), // 23: google.protobuf.Timestamp
+	(ServerState)(0),                            // 0: zonhoren.phron.v1.ServerState
+	(ServerPower)(0),                            // 1: zonhoren.phron.v1.ServerPower
+	(ServerTier)(0),                             // 2: zonhoren.phron.v1.ServerTier
+	(ServerFirewallDirection)(0),                // 3: zonhoren.phron.v1.ServerFirewallDirection
+	(ServerFirewallAction)(0),                   // 4: zonhoren.phron.v1.ServerFirewallAction
+	(ServerMailPorts)(0),                        // 5: zonhoren.phron.v1.ServerMailPorts
+	(ServerBackupKind)(0),                       // 6: zonhoren.phron.v1.ServerBackupKind
+	(ServerBackupState)(0),                      // 7: zonhoren.phron.v1.ServerBackupState
+	(CustomOperatingSystemState)(0),             // 8: zonhoren.phron.v1.CustomOperatingSystemState
+	(*CustomOperatingSystemSnapshotSource)(nil), // 9: zonhoren.phron.v1.CustomOperatingSystemSnapshotSource
+	(*CustomOperatingSystemBucketSource)(nil),   // 10: zonhoren.phron.v1.CustomOperatingSystemBucketSource
+	(*CustomOperatingSystem)(nil),               // 11: zonhoren.phron.v1.CustomOperatingSystem
+	(*ServerSize)(nil),                          // 12: zonhoren.phron.v1.ServerSize
+	(*ServerUnitRate)(nil),                      // 13: zonhoren.phron.v1.ServerUnitRate
+	(*ServerPrice)(nil),                         // 14: zonhoren.phron.v1.ServerPrice
+	(*ServerSizeRules)(nil),                     // 15: zonhoren.phron.v1.ServerSizeRules
+	(*ServerSizePrice)(nil),                     // 16: zonhoren.phron.v1.ServerSizePrice
+	(*ServerSizeProblem)(nil),                   // 17: zonhoren.phron.v1.ServerSizeProblem
+	(*OperatingSystem)(nil),                     // 18: zonhoren.phron.v1.OperatingSystem
+	(*ServerPortRange)(nil),                     // 19: zonhoren.phron.v1.ServerPortRange
+	(*ServerFirewallRule)(nil),                  // 20: zonhoren.phron.v1.ServerFirewallRule
+	(*ServerFirewall)(nil),                      // 21: zonhoren.phron.v1.ServerFirewall
+	(*SshKey)(nil),                              // 22: zonhoren.phron.v1.SshKey
+	(*Server)(nil),                              // 23: zonhoren.phron.v1.Server
+	(*ServerBackupLimits)(nil),                  // 24: zonhoren.phron.v1.ServerBackupLimits
+	(*ServerBackup)(nil),                        // 25: zonhoren.phron.v1.ServerBackup
+	(*ServerTrafficBucket)(nil),                 // 26: zonhoren.phron.v1.ServerTrafficBucket
+	(*timestamppb.Timestamp)(nil),               // 27: google.protobuf.Timestamp
 }
 var file_zonhoren_phron_v1_servers_common_proto_depIdxs = []int32{
-	2,  // 0: zonhoren.phron.v1.ServerSize.tier:type_name -> zonhoren.phron.v1.ServerTier
-	9,  // 1: zonhoren.phron.v1.ServerPrice.shared_vcpu:type_name -> zonhoren.phron.v1.ServerUnitRate
-	9,  // 2: zonhoren.phron.v1.ServerPrice.dedicated_vcpu:type_name -> zonhoren.phron.v1.ServerUnitRate
-	9,  // 3: zonhoren.phron.v1.ServerPrice.memory_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
-	9,  // 4: zonhoren.phron.v1.ServerPrice.disk_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
-	9,  // 5: zonhoren.phron.v1.ServerPrice.backup_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
-	3,  // 6: zonhoren.phron.v1.ServerFirewallRule.direction:type_name -> zonhoren.phron.v1.ServerFirewallDirection
-	4,  // 7: zonhoren.phron.v1.ServerFirewallRule.action:type_name -> zonhoren.phron.v1.ServerFirewallAction
-	15, // 8: zonhoren.phron.v1.ServerFirewallRule.ports:type_name -> zonhoren.phron.v1.ServerPortRange
-	16, // 9: zonhoren.phron.v1.ServerFirewall.rules:type_name -> zonhoren.phron.v1.ServerFirewallRule
-	4,  // 10: zonhoren.phron.v1.ServerFirewall.default_inbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
-	4,  // 11: zonhoren.phron.v1.ServerFirewall.default_outbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
-	23, // 12: zonhoren.phron.v1.SshKey.created_at:type_name -> google.protobuf.Timestamp
-	0,  // 13: zonhoren.phron.v1.Server.state:type_name -> zonhoren.phron.v1.ServerState
-	14, // 14: zonhoren.phron.v1.Server.operating_system:type_name -> zonhoren.phron.v1.OperatingSystem
-	23, // 15: zonhoren.phron.v1.Server.created_at:type_name -> google.protobuf.Timestamp
-	23, // 16: zonhoren.phron.v1.Server.deleted_at:type_name -> google.protobuf.Timestamp
-	5,  // 17: zonhoren.phron.v1.Server.mail_ports:type_name -> zonhoren.phron.v1.ServerMailPorts
-	8,  // 18: zonhoren.phron.v1.Server.size:type_name -> zonhoren.phron.v1.ServerSize
-	12, // 19: zonhoren.phron.v1.Server.price:type_name -> zonhoren.phron.v1.ServerSizePrice
-	1,  // 20: zonhoren.phron.v1.Server.power:type_name -> zonhoren.phron.v1.ServerPower
-	23, // 21: zonhoren.phron.v1.Server.power_observed_at:type_name -> google.protobuf.Timestamp
-	23, // 22: zonhoren.phron.v1.Server.lost_at:type_name -> google.protobuf.Timestamp
-	6,  // 23: zonhoren.phron.v1.ServerBackup.kind:type_name -> zonhoren.phron.v1.ServerBackupKind
-	7,  // 24: zonhoren.phron.v1.ServerBackup.state:type_name -> zonhoren.phron.v1.ServerBackupState
-	23, // 25: zonhoren.phron.v1.ServerBackup.created_at:type_name -> google.protobuf.Timestamp
-	23, // 26: zonhoren.phron.v1.ServerBackup.expires_at:type_name -> google.protobuf.Timestamp
-	23, // 27: zonhoren.phron.v1.ServerTrafficBucket.hour_start:type_name -> google.protobuf.Timestamp
-	28, // [28:28] is the sub-list for method output_type
-	28, // [28:28] is the sub-list for method input_type
-	28, // [28:28] is the sub-list for extension type_name
-	28, // [28:28] is the sub-list for extension extendee
-	0,  // [0:28] is the sub-list for field type_name
+	8,  // 0: zonhoren.phron.v1.CustomOperatingSystem.state:type_name -> zonhoren.phron.v1.CustomOperatingSystemState
+	9,  // 1: zonhoren.phron.v1.CustomOperatingSystem.snapshot:type_name -> zonhoren.phron.v1.CustomOperatingSystemSnapshotSource
+	10, // 2: zonhoren.phron.v1.CustomOperatingSystem.bucket_object:type_name -> zonhoren.phron.v1.CustomOperatingSystemBucketSource
+	27, // 3: zonhoren.phron.v1.CustomOperatingSystem.created_at:type_name -> google.protobuf.Timestamp
+	2,  // 4: zonhoren.phron.v1.ServerSize.tier:type_name -> zonhoren.phron.v1.ServerTier
+	13, // 5: zonhoren.phron.v1.ServerPrice.shared_vcpu:type_name -> zonhoren.phron.v1.ServerUnitRate
+	13, // 6: zonhoren.phron.v1.ServerPrice.dedicated_vcpu:type_name -> zonhoren.phron.v1.ServerUnitRate
+	13, // 7: zonhoren.phron.v1.ServerPrice.memory_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
+	13, // 8: zonhoren.phron.v1.ServerPrice.disk_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
+	13, // 9: zonhoren.phron.v1.ServerPrice.backup_gib:type_name -> zonhoren.phron.v1.ServerUnitRate
+	3,  // 10: zonhoren.phron.v1.ServerFirewallRule.direction:type_name -> zonhoren.phron.v1.ServerFirewallDirection
+	4,  // 11: zonhoren.phron.v1.ServerFirewallRule.action:type_name -> zonhoren.phron.v1.ServerFirewallAction
+	19, // 12: zonhoren.phron.v1.ServerFirewallRule.ports:type_name -> zonhoren.phron.v1.ServerPortRange
+	20, // 13: zonhoren.phron.v1.ServerFirewall.rules:type_name -> zonhoren.phron.v1.ServerFirewallRule
+	4,  // 14: zonhoren.phron.v1.ServerFirewall.default_inbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
+	4,  // 15: zonhoren.phron.v1.ServerFirewall.default_outbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
+	27, // 16: zonhoren.phron.v1.SshKey.created_at:type_name -> google.protobuf.Timestamp
+	0,  // 17: zonhoren.phron.v1.Server.state:type_name -> zonhoren.phron.v1.ServerState
+	18, // 18: zonhoren.phron.v1.Server.operating_system:type_name -> zonhoren.phron.v1.OperatingSystem
+	27, // 19: zonhoren.phron.v1.Server.created_at:type_name -> google.protobuf.Timestamp
+	27, // 20: zonhoren.phron.v1.Server.deleted_at:type_name -> google.protobuf.Timestamp
+	5,  // 21: zonhoren.phron.v1.Server.mail_ports:type_name -> zonhoren.phron.v1.ServerMailPorts
+	12, // 22: zonhoren.phron.v1.Server.size:type_name -> zonhoren.phron.v1.ServerSize
+	16, // 23: zonhoren.phron.v1.Server.price:type_name -> zonhoren.phron.v1.ServerSizePrice
+	1,  // 24: zonhoren.phron.v1.Server.power:type_name -> zonhoren.phron.v1.ServerPower
+	27, // 25: zonhoren.phron.v1.Server.power_observed_at:type_name -> google.protobuf.Timestamp
+	27, // 26: zonhoren.phron.v1.Server.lost_at:type_name -> google.protobuf.Timestamp
+	6,  // 27: zonhoren.phron.v1.ServerBackup.kind:type_name -> zonhoren.phron.v1.ServerBackupKind
+	7,  // 28: zonhoren.phron.v1.ServerBackup.state:type_name -> zonhoren.phron.v1.ServerBackupState
+	27, // 29: zonhoren.phron.v1.ServerBackup.created_at:type_name -> google.protobuf.Timestamp
+	27, // 30: zonhoren.phron.v1.ServerBackup.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 31: zonhoren.phron.v1.ServerTrafficBucket.hour_start:type_name -> google.protobuf.Timestamp
+	32, // [32:32] is the sub-list for method output_type
+	32, // [32:32] is the sub-list for method input_type
+	32, // [32:32] is the sub-list for extension type_name
+	32, // [32:32] is the sub-list for extension extendee
+	0,  // [0:32] is the sub-list for field type_name
 }
 
 func init() { file_zonhoren_phron_v1_servers_common_proto_init() }
@@ -2215,16 +2646,21 @@ func file_zonhoren_phron_v1_servers_common_proto_init() {
 	if File_zonhoren_phron_v1_servers_common_proto != nil {
 		return
 	}
-	file_zonhoren_phron_v1_servers_common_proto_msgTypes[8].OneofWrappers = []any{}
+	file_zonhoren_phron_v1_servers_common_proto_msgTypes[2].OneofWrappers = []any{
+		(*CustomOperatingSystem_Snapshot)(nil),
+		(*CustomOperatingSystem_BucketObject)(nil),
+		(*CustomOperatingSystem_CustomOperatingSystemId)(nil),
+	}
 	file_zonhoren_phron_v1_servers_common_proto_msgTypes[11].OneofWrappers = []any{}
-	file_zonhoren_phron_v1_servers_common_proto_msgTypes[13].OneofWrappers = []any{}
+	file_zonhoren_phron_v1_servers_common_proto_msgTypes[14].OneofWrappers = []any{}
+	file_zonhoren_phron_v1_servers_common_proto_msgTypes[16].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_zonhoren_phron_v1_servers_common_proto_rawDesc), len(file_zonhoren_phron_v1_servers_common_proto_rawDesc)),
-			NumEnums:      8,
-			NumMessages:   15,
+			NumEnums:      9,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

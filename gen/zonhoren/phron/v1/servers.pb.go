@@ -471,9 +471,21 @@ type CreateServerRequest struct {
 	// (ALREADY_EXISTS when the same request_id arrives with other user data).
 	// cloud-init runs it once per instance, so changing it later has no effect on
 	// a Server that has booted; create a new Server instead.
-	UserData      string `protobuf:"bytes,10,opt,name=user_data,json=userData,proto3" json:"user_data,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UserData string `protobuf:"bytes,10,opt,name=user_data,json=userData,proto3" json:"user_data,omitempty"`
+	// Start the new Server from one of the Organization's Custom Operating
+	// Systems instead of a platform Operating System (operating_system_id is
+	// then ignored and may be empty). It must be READY, in the Workspace of the
+	// new Server (the Workspace's, when workspace_id is empty) and in the
+	// Server's Location (INVALID_ARGUMENT for another; location may be empty and
+	// is then the Custom Operating System's). The size's disk must be at least
+	// its min_disk_gib. NOT_FOUND for one that is not the caller's;
+	// FAILED_PRECONDITION when it is not READY. The platform's first-boot part of
+	// the cloud-init user data is applied when the Custom Operating System says
+	// cloud_init; the Server's login_user is the Custom Operating System's.
+	// Exclusive with restore_from_backup_id.
+	CustomOperatingSystemId string `protobuf:"bytes,11,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3" json:"custom_operating_system_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *CreateServerRequest) Reset() {
@@ -565,6 +577,13 @@ func (x *CreateServerRequest) GetWorkspaceId() string {
 func (x *CreateServerRequest) GetUserData() string {
 	if x != nil {
 		return x.UserData
+	}
+	return ""
+}
+
+func (x *CreateServerRequest) GetCustomOperatingSystemId() string {
+	if x != nil {
+		return x.CustomOperatingSystemId
 	}
 	return ""
 }
@@ -2236,6 +2255,607 @@ func (x *RestoreServerResponse) GetServer() *Server {
 	return nil
 }
 
+type CreateCustomOperatingSystemRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// A UUID the caller makes up for this attempt, as CreateServerRequest's.
+	// Required.
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// The customer's name, 1 to 63 characters.
+	Name        string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// The Workspace it belongs to; empty is the Organization's default Workspace.
+	WorkspaceId string `protobuf:"bytes,4,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	// Exactly one source.
+	//
+	// Types that are valid to be assigned to Source:
+	//
+	//	*CreateCustomOperatingSystemRequest_Snapshot
+	//	*CreateCustomOperatingSystemRequest_BucketObject
+	//	*CreateCustomOperatingSystemRequest_CustomOperatingSystemId
+	Source isCreateCustomOperatingSystemRequest_Source `protobuf_oneof:"source"`
+	// The Location to store it in. Empty means the source's Location (a Snapshot's
+	// Server's, a Custom Operating System's own). An object in a bucket needs
+	// one (the bucket's Location is not used: the disk is copied inside the platform).
+	// A Snapshot cannot be saved to another Location (INVALID_ARGUMENT): copy
+	// the Custom Operating System instead.
+	Location string `protobuf:"bytes,8,opt,name=location,proto3" json:"location,omitempty"`
+	// The system runs cloud-init (see CustomOperatingSystem.cloud_init).
+	CloudInit bool `protobuf:"varint,9,opt,name=cloud_init,json=cloudInit,proto3" json:"cloud_init,omitempty"`
+	// The system's default user, required when cloud_init is set (at most 32
+	// characters, lowercase letters, digits, hyphens and underscores).
+	LoginUser     string `protobuf:"bytes,10,opt,name=login_user,json=loginUser,proto3" json:"login_user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCustomOperatingSystemRequest) Reset() {
+	*x = CreateCustomOperatingSystemRequest{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCustomOperatingSystemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCustomOperatingSystemRequest) ProtoMessage() {}
+
+func (x *CreateCustomOperatingSystemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCustomOperatingSystemRequest.ProtoReflect.Descriptor instead.
+func (*CreateCustomOperatingSystemRequest) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetSource() isCreateCustomOperatingSystemRequest_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetSnapshot() *CustomOperatingSystemSnapshotSource {
+	if x != nil {
+		if x, ok := x.Source.(*CreateCustomOperatingSystemRequest_Snapshot); ok {
+			return x.Snapshot
+		}
+	}
+	return nil
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetBucketObject() *CustomOperatingSystemBucketSource {
+	if x != nil {
+		if x, ok := x.Source.(*CreateCustomOperatingSystemRequest_BucketObject); ok {
+			return x.BucketObject
+		}
+	}
+	return nil
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetCustomOperatingSystemId() string {
+	if x != nil {
+		if x, ok := x.Source.(*CreateCustomOperatingSystemRequest_CustomOperatingSystemId); ok {
+			return x.CustomOperatingSystemId
+		}
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetCloudInit() bool {
+	if x != nil {
+		return x.CloudInit
+	}
+	return false
+}
+
+func (x *CreateCustomOperatingSystemRequest) GetLoginUser() string {
+	if x != nil {
+		return x.LoginUser
+	}
+	return ""
+}
+
+type isCreateCustomOperatingSystemRequest_Source interface {
+	isCreateCustomOperatingSystemRequest_Source()
+}
+
+type CreateCustomOperatingSystemRequest_Snapshot struct {
+	Snapshot *CustomOperatingSystemSnapshotSource `protobuf:"bytes,5,opt,name=snapshot,proto3,oneof"`
+}
+
+type CreateCustomOperatingSystemRequest_BucketObject struct {
+	BucketObject *CustomOperatingSystemBucketSource `protobuf:"bytes,6,opt,name=bucket_object,json=bucketObject,proto3,oneof"`
+}
+
+type CreateCustomOperatingSystemRequest_CustomOperatingSystemId struct {
+	// A copy of this Custom Operating System (it must be READY).
+	CustomOperatingSystemId string `protobuf:"bytes,7,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3,oneof"`
+}
+
+func (*CreateCustomOperatingSystemRequest_Snapshot) isCreateCustomOperatingSystemRequest_Source() {}
+
+func (*CreateCustomOperatingSystemRequest_BucketObject) isCreateCustomOperatingSystemRequest_Source() {
+}
+
+func (*CreateCustomOperatingSystemRequest_CustomOperatingSystemId) isCreateCustomOperatingSystemRequest_Source() {
+}
+
+type CreateCustomOperatingSystemResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystem *CustomOperatingSystem `protobuf:"bytes,1,opt,name=custom_operating_system,json=customOperatingSystem,proto3" json:"custom_operating_system,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *CreateCustomOperatingSystemResponse) Reset() {
+	*x = CreateCustomOperatingSystemResponse{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCustomOperatingSystemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCustomOperatingSystemResponse) ProtoMessage() {}
+
+func (x *CreateCustomOperatingSystemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCustomOperatingSystemResponse.ProtoReflect.Descriptor instead.
+func (*CreateCustomOperatingSystemResponse) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *CreateCustomOperatingSystemResponse) GetCustomOperatingSystem() *CustomOperatingSystem {
+	if x != nil {
+		return x.CustomOperatingSystem
+	}
+	return nil
+}
+
+type GetCustomOperatingSystemRequest struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystemId string                 `protobuf:"bytes,1,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3" json:"custom_operating_system_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *GetCustomOperatingSystemRequest) Reset() {
+	*x = GetCustomOperatingSystemRequest{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCustomOperatingSystemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCustomOperatingSystemRequest) ProtoMessage() {}
+
+func (x *GetCustomOperatingSystemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCustomOperatingSystemRequest.ProtoReflect.Descriptor instead.
+func (*GetCustomOperatingSystemRequest) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *GetCustomOperatingSystemRequest) GetCustomOperatingSystemId() string {
+	if x != nil {
+		return x.CustomOperatingSystemId
+	}
+	return ""
+}
+
+type GetCustomOperatingSystemResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystem *CustomOperatingSystem `protobuf:"bytes,1,opt,name=custom_operating_system,json=customOperatingSystem,proto3" json:"custom_operating_system,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *GetCustomOperatingSystemResponse) Reset() {
+	*x = GetCustomOperatingSystemResponse{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetCustomOperatingSystemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetCustomOperatingSystemResponse) ProtoMessage() {}
+
+func (x *GetCustomOperatingSystemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetCustomOperatingSystemResponse.ProtoReflect.Descriptor instead.
+func (*GetCustomOperatingSystemResponse) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *GetCustomOperatingSystemResponse) GetCustomOperatingSystem() *CustomOperatingSystem {
+	if x != nil {
+		return x.CustomOperatingSystem
+	}
+	return nil
+}
+
+type ListCustomOperatingSystemsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only this Workspace's; empty means every Workspace of the Organization.
+	WorkspaceId   string `protobuf:"bytes,1,opt,name=workspace_id,json=workspaceId,proto3" json:"workspace_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListCustomOperatingSystemsRequest) Reset() {
+	*x = ListCustomOperatingSystemsRequest{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomOperatingSystemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomOperatingSystemsRequest) ProtoMessage() {}
+
+func (x *ListCustomOperatingSystemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomOperatingSystemsRequest.ProtoReflect.Descriptor instead.
+func (*ListCustomOperatingSystemsRequest) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ListCustomOperatingSystemsRequest) GetWorkspaceId() string {
+	if x != nil {
+		return x.WorkspaceId
+	}
+	return ""
+}
+
+type ListCustomOperatingSystemsResponse struct {
+	state                  protoimpl.MessageState   `protogen:"open.v1"`
+	CustomOperatingSystems []*CustomOperatingSystem `protobuf:"bytes,1,rep,name=custom_operating_systems,json=customOperatingSystems,proto3" json:"custom_operating_systems,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *ListCustomOperatingSystemsResponse) Reset() {
+	*x = ListCustomOperatingSystemsResponse{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListCustomOperatingSystemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListCustomOperatingSystemsResponse) ProtoMessage() {}
+
+func (x *ListCustomOperatingSystemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListCustomOperatingSystemsResponse.ProtoReflect.Descriptor instead.
+func (*ListCustomOperatingSystemsResponse) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ListCustomOperatingSystemsResponse) GetCustomOperatingSystems() []*CustomOperatingSystem {
+	if x != nil {
+		return x.CustomOperatingSystems
+	}
+	return nil
+}
+
+type UpdateCustomOperatingSystemRequest struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystemId string                 `protobuf:"bytes,1,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3" json:"custom_operating_system_id,omitempty"`
+	// Each field is changed only when its value is present.
+	Name          *string `protobuf:"bytes,2,opt,name=name,proto3,oneof" json:"name,omitempty"`
+	Description   *string `protobuf:"bytes,3,opt,name=description,proto3,oneof" json:"description,omitempty"`
+	CloudInit     *bool   `protobuf:"varint,4,opt,name=cloud_init,json=cloudInit,proto3,oneof" json:"cloud_init,omitempty"`
+	LoginUser     *string `protobuf:"bytes,5,opt,name=login_user,json=loginUser,proto3,oneof" json:"login_user,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UpdateCustomOperatingSystemRequest) Reset() {
+	*x = UpdateCustomOperatingSystemRequest{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCustomOperatingSystemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCustomOperatingSystemRequest) ProtoMessage() {}
+
+func (x *UpdateCustomOperatingSystemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCustomOperatingSystemRequest.ProtoReflect.Descriptor instead.
+func (*UpdateCustomOperatingSystemRequest) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *UpdateCustomOperatingSystemRequest) GetCustomOperatingSystemId() string {
+	if x != nil {
+		return x.CustomOperatingSystemId
+	}
+	return ""
+}
+
+func (x *UpdateCustomOperatingSystemRequest) GetName() string {
+	if x != nil && x.Name != nil {
+		return *x.Name
+	}
+	return ""
+}
+
+func (x *UpdateCustomOperatingSystemRequest) GetDescription() string {
+	if x != nil && x.Description != nil {
+		return *x.Description
+	}
+	return ""
+}
+
+func (x *UpdateCustomOperatingSystemRequest) GetCloudInit() bool {
+	if x != nil && x.CloudInit != nil {
+		return *x.CloudInit
+	}
+	return false
+}
+
+func (x *UpdateCustomOperatingSystemRequest) GetLoginUser() string {
+	if x != nil && x.LoginUser != nil {
+		return *x.LoginUser
+	}
+	return ""
+}
+
+type UpdateCustomOperatingSystemResponse struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystem *CustomOperatingSystem `protobuf:"bytes,1,opt,name=custom_operating_system,json=customOperatingSystem,proto3" json:"custom_operating_system,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *UpdateCustomOperatingSystemResponse) Reset() {
+	*x = UpdateCustomOperatingSystemResponse{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UpdateCustomOperatingSystemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UpdateCustomOperatingSystemResponse) ProtoMessage() {}
+
+func (x *UpdateCustomOperatingSystemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UpdateCustomOperatingSystemResponse.ProtoReflect.Descriptor instead.
+func (*UpdateCustomOperatingSystemResponse) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *UpdateCustomOperatingSystemResponse) GetCustomOperatingSystem() *CustomOperatingSystem {
+	if x != nil {
+		return x.CustomOperatingSystem
+	}
+	return nil
+}
+
+type DeleteCustomOperatingSystemRequest struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystemId string                 `protobuf:"bytes,1,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3" json:"custom_operating_system_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *DeleteCustomOperatingSystemRequest) Reset() {
+	*x = DeleteCustomOperatingSystemRequest{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCustomOperatingSystemRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCustomOperatingSystemRequest) ProtoMessage() {}
+
+func (x *DeleteCustomOperatingSystemRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCustomOperatingSystemRequest.ProtoReflect.Descriptor instead.
+func (*DeleteCustomOperatingSystemRequest) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *DeleteCustomOperatingSystemRequest) GetCustomOperatingSystemId() string {
+	if x != nil {
+		return x.CustomOperatingSystemId
+	}
+	return ""
+}
+
+type DeleteCustomOperatingSystemResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	CustomOperatingSystemId string                 `protobuf:"bytes,1,opt,name=custom_operating_system_id,json=customOperatingSystemId,proto3" json:"custom_operating_system_id,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *DeleteCustomOperatingSystemResponse) Reset() {
+	*x = DeleteCustomOperatingSystemResponse{}
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteCustomOperatingSystemResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteCustomOperatingSystemResponse) ProtoMessage() {}
+
+func (x *DeleteCustomOperatingSystemResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteCustomOperatingSystemResponse.ProtoReflect.Descriptor instead.
+func (*DeleteCustomOperatingSystemResponse) Descriptor() ([]byte, []int) {
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *DeleteCustomOperatingSystemResponse) GetCustomOperatingSystemId() string {
+	if x != nil {
+		return x.CustomOperatingSystemId
+	}
+	return ""
+}
+
 type GetServerTrafficRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	ServerId string                 `protobuf:"bytes,1,opt,name=server_id,json=serverId,proto3" json:"server_id,omitempty"`
@@ -2250,7 +2870,7 @@ type GetServerTrafficRequest struct {
 
 func (x *GetServerTrafficRequest) Reset() {
 	*x = GetServerTrafficRequest{}
-	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[44]
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2262,7 +2882,7 @@ func (x *GetServerTrafficRequest) String() string {
 func (*GetServerTrafficRequest) ProtoMessage() {}
 
 func (x *GetServerTrafficRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[44]
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2275,7 +2895,7 @@ func (x *GetServerTrafficRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerTrafficRequest.ProtoReflect.Descriptor instead.
 func (*GetServerTrafficRequest) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{44}
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *GetServerTrafficRequest) GetServerId() string {
@@ -2309,7 +2929,7 @@ type GetServerTrafficResponse struct {
 
 func (x *GetServerTrafficResponse) Reset() {
 	*x = GetServerTrafficResponse{}
-	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[45]
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2321,7 +2941,7 @@ func (x *GetServerTrafficResponse) String() string {
 func (*GetServerTrafficResponse) ProtoMessage() {}
 
 func (x *GetServerTrafficResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[45]
+	mi := &file_zonhoren_phron_v1_servers_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2334,7 +2954,7 @@ func (x *GetServerTrafficResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetServerTrafficResponse.ProtoReflect.Descriptor instead.
 func (*GetServerTrafficResponse) Descriptor() ([]byte, []int) {
-	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{45}
+	return file_zonhoren_phron_v1_servers_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *GetServerTrafficResponse) GetBuckets() []*ServerTrafficBucket {
@@ -2373,7 +2993,7 @@ const file_zonhoren_phron_v1_servers_proto_rawDesc = "" +
 	"\x11operating_systems\x18\x01 \x03(\v2\".zonhoren.phron.v1.OperatingSystemR\x10operatingSystems\"\x1c\n" +
 	"\x1aListServerLocationsRequest\"X\n" +
 	"\x1bListServerLocationsResponse\x129\n" +
-	"\tlocations\x18\x01 \x03(\v2\x1b.zonhoren.phron.v1.LocationR\tlocations\"\xf2\x02\n" +
+	"\tlocations\x18\x01 \x03(\v2\x1b.zonhoren.phron.v1.LocationR\tlocations\"\xaf\x03\n" +
 	"\x13CreateServerRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12.\n" +
 	"\x13operating_system_id\x18\x03 \x01(\tR\x11operatingSystemId\x12\x1e\n" +
@@ -2385,7 +3005,8 @@ const file_zonhoren_phron_v1_servers_proto_rawDesc = "" +
 	"\blocation\x18\b \x01(\tR\blocation\x12!\n" +
 	"\fworkspace_id\x18\t \x01(\tR\vworkspaceId\x12\x1b\n" +
 	"\tuser_data\x18\n" +
-	" \x01(\tR\buserDataJ\x04\b\x02\x10\x03R\x0eserver_type_id\"I\n" +
+	" \x01(\tR\buserData\x12;\n" +
+	"\x1acustom_operating_system_id\x18\v \x01(\tR\x17customOperatingSystemIdJ\x04\b\x02\x10\x03R\x0eserver_type_id\"I\n" +
 	"\x14CreateServerResponse\x121\n" +
 	"\x06server\x18\x01 \x01(\v2\x19.zonhoren.phron.v1.ServerR\x06server\"`\n" +
 	"\x12ListServersRequest\x12'\n" +
@@ -2473,14 +3094,58 @@ const file_zonhoren_phron_v1_servers_proto_rawDesc = "" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x12\x1b\n" +
 	"\tbackup_id\x18\x02 \x01(\tR\bbackupId\"J\n" +
 	"\x15RestoreServerResponse\x121\n" +
-	"\x06server\x18\x01 \x01(\v2\x19.zonhoren.phron.v1.ServerR\x06server\"\xa8\x01\n" +
+	"\x06server\x18\x01 \x01(\v2\x19.zonhoren.phron.v1.ServerR\x06server\"\xf2\x03\n" +
+	"\"CreateCustomOperatingSystemRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12!\n" +
+	"\fworkspace_id\x18\x04 \x01(\tR\vworkspaceId\x12T\n" +
+	"\bsnapshot\x18\x05 \x01(\v26.zonhoren.phron.v1.CustomOperatingSystemSnapshotSourceH\x00R\bsnapshot\x12[\n" +
+	"\rbucket_object\x18\x06 \x01(\v24.zonhoren.phron.v1.CustomOperatingSystemBucketSourceH\x00R\fbucketObject\x12=\n" +
+	"\x1acustom_operating_system_id\x18\a \x01(\tH\x00R\x17customOperatingSystemId\x12\x1a\n" +
+	"\blocation\x18\b \x01(\tR\blocation\x12\x1d\n" +
+	"\n" +
+	"cloud_init\x18\t \x01(\bR\tcloudInit\x12\x1d\n" +
+	"\n" +
+	"login_user\x18\n" +
+	" \x01(\tR\tloginUserB\b\n" +
+	"\x06source\"\x87\x01\n" +
+	"#CreateCustomOperatingSystemResponse\x12`\n" +
+	"\x17custom_operating_system\x18\x01 \x01(\v2(.zonhoren.phron.v1.CustomOperatingSystemR\x15customOperatingSystem\"^\n" +
+	"\x1fGetCustomOperatingSystemRequest\x12;\n" +
+	"\x1acustom_operating_system_id\x18\x01 \x01(\tR\x17customOperatingSystemId\"\x84\x01\n" +
+	" GetCustomOperatingSystemResponse\x12`\n" +
+	"\x17custom_operating_system\x18\x01 \x01(\v2(.zonhoren.phron.v1.CustomOperatingSystemR\x15customOperatingSystem\"F\n" +
+	"!ListCustomOperatingSystemsRequest\x12!\n" +
+	"\fworkspace_id\x18\x01 \x01(\tR\vworkspaceId\"\x88\x01\n" +
+	"\"ListCustomOperatingSystemsResponse\x12b\n" +
+	"\x18custom_operating_systems\x18\x01 \x03(\v2(.zonhoren.phron.v1.CustomOperatingSystemR\x16customOperatingSystems\"\xa0\x02\n" +
+	"\"UpdateCustomOperatingSystemRequest\x12;\n" +
+	"\x1acustom_operating_system_id\x18\x01 \x01(\tR\x17customOperatingSystemId\x12\x17\n" +
+	"\x04name\x18\x02 \x01(\tH\x00R\x04name\x88\x01\x01\x12%\n" +
+	"\vdescription\x18\x03 \x01(\tH\x01R\vdescription\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"cloud_init\x18\x04 \x01(\bH\x02R\tcloudInit\x88\x01\x01\x12\"\n" +
+	"\n" +
+	"login_user\x18\x05 \x01(\tH\x03R\tloginUser\x88\x01\x01B\a\n" +
+	"\x05_nameB\x0e\n" +
+	"\f_descriptionB\r\n" +
+	"\v_cloud_initB\r\n" +
+	"\v_login_user\"\x87\x01\n" +
+	"#UpdateCustomOperatingSystemResponse\x12`\n" +
+	"\x17custom_operating_system\x18\x01 \x01(\v2(.zonhoren.phron.v1.CustomOperatingSystemR\x15customOperatingSystem\"a\n" +
+	"\"DeleteCustomOperatingSystemRequest\x12;\n" +
+	"\x1acustom_operating_system_id\x18\x01 \x01(\tR\x17customOperatingSystemId\"b\n" +
+	"#DeleteCustomOperatingSystemResponse\x12;\n" +
+	"\x1acustom_operating_system_id\x18\x01 \x01(\tR\x17customOperatingSystemId\"\xa8\x01\n" +
 	"\x17GetServerTrafficRequest\x12\x1b\n" +
 	"\tserver_id\x18\x01 \x01(\tR\bserverId\x129\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\aendTime\"\\\n" +
 	"\x18GetServerTrafficResponse\x12@\n" +
-	"\abuckets\x18\x01 \x03(\v2&.zonhoren.phron.v1.ServerTrafficBucketR\abuckets2\xfa\x12\n" +
+	"\abuckets\x18\x01 \x03(\v2&.zonhoren.phron.v1.ServerTrafficBucketR\abuckets2\xb9\x18\n" +
 	"\rServerService\x12k\n" +
 	"\x10GetServerPricing\x12*.zonhoren.phron.v1.GetServerPricingRequest\x1a+.zonhoren.phron.v1.GetServerPricingResponse\x12\\\n" +
 	"\vQuoteServer\x12%.zonhoren.phron.v1.QuoteServerRequest\x1a&.zonhoren.phron.v1.QuoteServerResponse\x12w\n" +
@@ -2504,7 +3169,12 @@ const file_zonhoren_phron_v1_servers_proto_rawDesc = "" +
 	"\x11ListServerBackups\x12+.zonhoren.phron.v1.ListServerBackupsRequest\x1a,.zonhoren.phron.v1.ListServerBackupsResponse\x12w\n" +
 	"\x14CreateServerSnapshot\x12..zonhoren.phron.v1.CreateServerSnapshotRequest\x1a/.zonhoren.phron.v1.CreateServerSnapshotResponse\x12w\n" +
 	"\x14DeleteServerSnapshot\x12..zonhoren.phron.v1.DeleteServerSnapshotRequest\x1a/.zonhoren.phron.v1.DeleteServerSnapshotResponse\x12b\n" +
-	"\rRestoreServer\x12'.zonhoren.phron.v1.RestoreServerRequest\x1a(.zonhoren.phron.v1.RestoreServerResponse\x12k\n" +
+	"\rRestoreServer\x12'.zonhoren.phron.v1.RestoreServerRequest\x1a(.zonhoren.phron.v1.RestoreServerResponse\x12\x8c\x01\n" +
+	"\x1bCreateCustomOperatingSystem\x125.zonhoren.phron.v1.CreateCustomOperatingSystemRequest\x1a6.zonhoren.phron.v1.CreateCustomOperatingSystemResponse\x12\x83\x01\n" +
+	"\x18GetCustomOperatingSystem\x122.zonhoren.phron.v1.GetCustomOperatingSystemRequest\x1a3.zonhoren.phron.v1.GetCustomOperatingSystemResponse\x12\x89\x01\n" +
+	"\x1aListCustomOperatingSystems\x124.zonhoren.phron.v1.ListCustomOperatingSystemsRequest\x1a5.zonhoren.phron.v1.ListCustomOperatingSystemsResponse\x12\x8c\x01\n" +
+	"\x1bUpdateCustomOperatingSystem\x125.zonhoren.phron.v1.UpdateCustomOperatingSystemRequest\x1a6.zonhoren.phron.v1.UpdateCustomOperatingSystemResponse\x12\x8c\x01\n" +
+	"\x1bDeleteCustomOperatingSystem\x125.zonhoren.phron.v1.DeleteCustomOperatingSystemRequest\x1a6.zonhoren.phron.v1.DeleteCustomOperatingSystemResponse\x12k\n" +
 	"\x10GetServerTraffic\x12*.zonhoren.phron.v1.GetServerTrafficRequest\x1a+.zonhoren.phron.v1.GetServerTrafficResponseB8Z6github.com/phron-net/api/gen/zonhoren/phron/v1;phronv1b\x06proto3"
 
 var (
@@ -2519,155 +3189,184 @@ func file_zonhoren_phron_v1_servers_proto_rawDescGZIP() []byte {
 	return file_zonhoren_phron_v1_servers_proto_rawDescData
 }
 
-var file_zonhoren_phron_v1_servers_proto_msgTypes = make([]protoimpl.MessageInfo, 46)
+var file_zonhoren_phron_v1_servers_proto_msgTypes = make([]protoimpl.MessageInfo, 56)
 var file_zonhoren_phron_v1_servers_proto_goTypes = []any{
-	(*GetServerPricingRequest)(nil),        // 0: zonhoren.phron.v1.GetServerPricingRequest
-	(*GetServerPricingResponse)(nil),       // 1: zonhoren.phron.v1.GetServerPricingResponse
-	(*QuoteServerRequest)(nil),             // 2: zonhoren.phron.v1.QuoteServerRequest
-	(*QuoteServerResponse)(nil),            // 3: zonhoren.phron.v1.QuoteServerResponse
-	(*ListOperatingSystemsRequest)(nil),    // 4: zonhoren.phron.v1.ListOperatingSystemsRequest
-	(*ListOperatingSystemsResponse)(nil),   // 5: zonhoren.phron.v1.ListOperatingSystemsResponse
-	(*ListServerLocationsRequest)(nil),     // 6: zonhoren.phron.v1.ListServerLocationsRequest
-	(*ListServerLocationsResponse)(nil),    // 7: zonhoren.phron.v1.ListServerLocationsResponse
-	(*CreateServerRequest)(nil),            // 8: zonhoren.phron.v1.CreateServerRequest
-	(*CreateServerResponse)(nil),           // 9: zonhoren.phron.v1.CreateServerResponse
-	(*ListServersRequest)(nil),             // 10: zonhoren.phron.v1.ListServersRequest
-	(*ListServersResponse)(nil),            // 11: zonhoren.phron.v1.ListServersResponse
-	(*GetServerRequest)(nil),               // 12: zonhoren.phron.v1.GetServerRequest
-	(*GetServerResponse)(nil),              // 13: zonhoren.phron.v1.GetServerResponse
-	(*DeleteServerRequest)(nil),            // 14: zonhoren.phron.v1.DeleteServerRequest
-	(*DeleteServerResponse)(nil),           // 15: zonhoren.phron.v1.DeleteServerResponse
-	(*StartServerRequest)(nil),             // 16: zonhoren.phron.v1.StartServerRequest
-	(*StartServerResponse)(nil),            // 17: zonhoren.phron.v1.StartServerResponse
-	(*StopServerRequest)(nil),              // 18: zonhoren.phron.v1.StopServerRequest
-	(*StopServerResponse)(nil),             // 19: zonhoren.phron.v1.StopServerResponse
-	(*RebootServerRequest)(nil),            // 20: zonhoren.phron.v1.RebootServerRequest
-	(*RebootServerResponse)(nil),           // 21: zonhoren.phron.v1.RebootServerResponse
-	(*ResizeServerRequest)(nil),            // 22: zonhoren.phron.v1.ResizeServerRequest
-	(*ResizeServerResponse)(nil),           // 23: zonhoren.phron.v1.ResizeServerResponse
-	(*ListSshKeysRequest)(nil),             // 24: zonhoren.phron.v1.ListSshKeysRequest
-	(*ListSshKeysResponse)(nil),            // 25: zonhoren.phron.v1.ListSshKeysResponse
-	(*CreateSshKeyRequest)(nil),            // 26: zonhoren.phron.v1.CreateSshKeyRequest
-	(*CreateSshKeyResponse)(nil),           // 27: zonhoren.phron.v1.CreateSshKeyResponse
-	(*DeleteSshKeyRequest)(nil),            // 28: zonhoren.phron.v1.DeleteSshKeyRequest
-	(*DeleteSshKeyResponse)(nil),           // 29: zonhoren.phron.v1.DeleteSshKeyResponse
-	(*GetServerFirewallRequest)(nil),       // 30: zonhoren.phron.v1.GetServerFirewallRequest
-	(*GetServerFirewallResponse)(nil),      // 31: zonhoren.phron.v1.GetServerFirewallResponse
-	(*ReplaceServerFirewallRequest)(nil),   // 32: zonhoren.phron.v1.ReplaceServerFirewallRequest
-	(*ReplaceServerFirewallResponse)(nil),  // 33: zonhoren.phron.v1.ReplaceServerFirewallResponse
-	(*RequestServerMailPortsRequest)(nil),  // 34: zonhoren.phron.v1.RequestServerMailPortsRequest
-	(*RequestServerMailPortsResponse)(nil), // 35: zonhoren.phron.v1.RequestServerMailPortsResponse
-	(*ListServerBackupsRequest)(nil),       // 36: zonhoren.phron.v1.ListServerBackupsRequest
-	(*ListServerBackupsResponse)(nil),      // 37: zonhoren.phron.v1.ListServerBackupsResponse
-	(*CreateServerSnapshotRequest)(nil),    // 38: zonhoren.phron.v1.CreateServerSnapshotRequest
-	(*CreateServerSnapshotResponse)(nil),   // 39: zonhoren.phron.v1.CreateServerSnapshotResponse
-	(*DeleteServerSnapshotRequest)(nil),    // 40: zonhoren.phron.v1.DeleteServerSnapshotRequest
-	(*DeleteServerSnapshotResponse)(nil),   // 41: zonhoren.phron.v1.DeleteServerSnapshotResponse
-	(*RestoreServerRequest)(nil),           // 42: zonhoren.phron.v1.RestoreServerRequest
-	(*RestoreServerResponse)(nil),          // 43: zonhoren.phron.v1.RestoreServerResponse
-	(*GetServerTrafficRequest)(nil),        // 44: zonhoren.phron.v1.GetServerTrafficRequest
-	(*GetServerTrafficResponse)(nil),       // 45: zonhoren.phron.v1.GetServerTrafficResponse
-	(*ServerPrice)(nil),                    // 46: zonhoren.phron.v1.ServerPrice
-	(*ServerSizeRules)(nil),                // 47: zonhoren.phron.v1.ServerSizeRules
-	(*ServerSize)(nil),                     // 48: zonhoren.phron.v1.ServerSize
-	(*ServerSizePrice)(nil),                // 49: zonhoren.phron.v1.ServerSizePrice
-	(*ServerSizeProblem)(nil),              // 50: zonhoren.phron.v1.ServerSizeProblem
-	(*OperatingSystem)(nil),                // 51: zonhoren.phron.v1.OperatingSystem
-	(*Location)(nil),                       // 52: zonhoren.phron.v1.Location
-	(*Server)(nil),                         // 53: zonhoren.phron.v1.Server
-	(*SshKey)(nil),                         // 54: zonhoren.phron.v1.SshKey
-	(*ServerFirewall)(nil),                 // 55: zonhoren.phron.v1.ServerFirewall
-	(*ServerFirewallRule)(nil),             // 56: zonhoren.phron.v1.ServerFirewallRule
-	(ServerFirewallAction)(0),              // 57: zonhoren.phron.v1.ServerFirewallAction
-	(*ServerBackup)(nil),                   // 58: zonhoren.phron.v1.ServerBackup
-	(*ServerBackupLimits)(nil),             // 59: zonhoren.phron.v1.ServerBackupLimits
-	(*timestamppb.Timestamp)(nil),          // 60: google.protobuf.Timestamp
-	(*ServerTrafficBucket)(nil),            // 61: zonhoren.phron.v1.ServerTrafficBucket
+	(*GetServerPricingRequest)(nil),             // 0: zonhoren.phron.v1.GetServerPricingRequest
+	(*GetServerPricingResponse)(nil),            // 1: zonhoren.phron.v1.GetServerPricingResponse
+	(*QuoteServerRequest)(nil),                  // 2: zonhoren.phron.v1.QuoteServerRequest
+	(*QuoteServerResponse)(nil),                 // 3: zonhoren.phron.v1.QuoteServerResponse
+	(*ListOperatingSystemsRequest)(nil),         // 4: zonhoren.phron.v1.ListOperatingSystemsRequest
+	(*ListOperatingSystemsResponse)(nil),        // 5: zonhoren.phron.v1.ListOperatingSystemsResponse
+	(*ListServerLocationsRequest)(nil),          // 6: zonhoren.phron.v1.ListServerLocationsRequest
+	(*ListServerLocationsResponse)(nil),         // 7: zonhoren.phron.v1.ListServerLocationsResponse
+	(*CreateServerRequest)(nil),                 // 8: zonhoren.phron.v1.CreateServerRequest
+	(*CreateServerResponse)(nil),                // 9: zonhoren.phron.v1.CreateServerResponse
+	(*ListServersRequest)(nil),                  // 10: zonhoren.phron.v1.ListServersRequest
+	(*ListServersResponse)(nil),                 // 11: zonhoren.phron.v1.ListServersResponse
+	(*GetServerRequest)(nil),                    // 12: zonhoren.phron.v1.GetServerRequest
+	(*GetServerResponse)(nil),                   // 13: zonhoren.phron.v1.GetServerResponse
+	(*DeleteServerRequest)(nil),                 // 14: zonhoren.phron.v1.DeleteServerRequest
+	(*DeleteServerResponse)(nil),                // 15: zonhoren.phron.v1.DeleteServerResponse
+	(*StartServerRequest)(nil),                  // 16: zonhoren.phron.v1.StartServerRequest
+	(*StartServerResponse)(nil),                 // 17: zonhoren.phron.v1.StartServerResponse
+	(*StopServerRequest)(nil),                   // 18: zonhoren.phron.v1.StopServerRequest
+	(*StopServerResponse)(nil),                  // 19: zonhoren.phron.v1.StopServerResponse
+	(*RebootServerRequest)(nil),                 // 20: zonhoren.phron.v1.RebootServerRequest
+	(*RebootServerResponse)(nil),                // 21: zonhoren.phron.v1.RebootServerResponse
+	(*ResizeServerRequest)(nil),                 // 22: zonhoren.phron.v1.ResizeServerRequest
+	(*ResizeServerResponse)(nil),                // 23: zonhoren.phron.v1.ResizeServerResponse
+	(*ListSshKeysRequest)(nil),                  // 24: zonhoren.phron.v1.ListSshKeysRequest
+	(*ListSshKeysResponse)(nil),                 // 25: zonhoren.phron.v1.ListSshKeysResponse
+	(*CreateSshKeyRequest)(nil),                 // 26: zonhoren.phron.v1.CreateSshKeyRequest
+	(*CreateSshKeyResponse)(nil),                // 27: zonhoren.phron.v1.CreateSshKeyResponse
+	(*DeleteSshKeyRequest)(nil),                 // 28: zonhoren.phron.v1.DeleteSshKeyRequest
+	(*DeleteSshKeyResponse)(nil),                // 29: zonhoren.phron.v1.DeleteSshKeyResponse
+	(*GetServerFirewallRequest)(nil),            // 30: zonhoren.phron.v1.GetServerFirewallRequest
+	(*GetServerFirewallResponse)(nil),           // 31: zonhoren.phron.v1.GetServerFirewallResponse
+	(*ReplaceServerFirewallRequest)(nil),        // 32: zonhoren.phron.v1.ReplaceServerFirewallRequest
+	(*ReplaceServerFirewallResponse)(nil),       // 33: zonhoren.phron.v1.ReplaceServerFirewallResponse
+	(*RequestServerMailPortsRequest)(nil),       // 34: zonhoren.phron.v1.RequestServerMailPortsRequest
+	(*RequestServerMailPortsResponse)(nil),      // 35: zonhoren.phron.v1.RequestServerMailPortsResponse
+	(*ListServerBackupsRequest)(nil),            // 36: zonhoren.phron.v1.ListServerBackupsRequest
+	(*ListServerBackupsResponse)(nil),           // 37: zonhoren.phron.v1.ListServerBackupsResponse
+	(*CreateServerSnapshotRequest)(nil),         // 38: zonhoren.phron.v1.CreateServerSnapshotRequest
+	(*CreateServerSnapshotResponse)(nil),        // 39: zonhoren.phron.v1.CreateServerSnapshotResponse
+	(*DeleteServerSnapshotRequest)(nil),         // 40: zonhoren.phron.v1.DeleteServerSnapshotRequest
+	(*DeleteServerSnapshotResponse)(nil),        // 41: zonhoren.phron.v1.DeleteServerSnapshotResponse
+	(*RestoreServerRequest)(nil),                // 42: zonhoren.phron.v1.RestoreServerRequest
+	(*RestoreServerResponse)(nil),               // 43: zonhoren.phron.v1.RestoreServerResponse
+	(*CreateCustomOperatingSystemRequest)(nil),  // 44: zonhoren.phron.v1.CreateCustomOperatingSystemRequest
+	(*CreateCustomOperatingSystemResponse)(nil), // 45: zonhoren.phron.v1.CreateCustomOperatingSystemResponse
+	(*GetCustomOperatingSystemRequest)(nil),     // 46: zonhoren.phron.v1.GetCustomOperatingSystemRequest
+	(*GetCustomOperatingSystemResponse)(nil),    // 47: zonhoren.phron.v1.GetCustomOperatingSystemResponse
+	(*ListCustomOperatingSystemsRequest)(nil),   // 48: zonhoren.phron.v1.ListCustomOperatingSystemsRequest
+	(*ListCustomOperatingSystemsResponse)(nil),  // 49: zonhoren.phron.v1.ListCustomOperatingSystemsResponse
+	(*UpdateCustomOperatingSystemRequest)(nil),  // 50: zonhoren.phron.v1.UpdateCustomOperatingSystemRequest
+	(*UpdateCustomOperatingSystemResponse)(nil), // 51: zonhoren.phron.v1.UpdateCustomOperatingSystemResponse
+	(*DeleteCustomOperatingSystemRequest)(nil),  // 52: zonhoren.phron.v1.DeleteCustomOperatingSystemRequest
+	(*DeleteCustomOperatingSystemResponse)(nil), // 53: zonhoren.phron.v1.DeleteCustomOperatingSystemResponse
+	(*GetServerTrafficRequest)(nil),             // 54: zonhoren.phron.v1.GetServerTrafficRequest
+	(*GetServerTrafficResponse)(nil),            // 55: zonhoren.phron.v1.GetServerTrafficResponse
+	(*ServerPrice)(nil),                         // 56: zonhoren.phron.v1.ServerPrice
+	(*ServerSizeRules)(nil),                     // 57: zonhoren.phron.v1.ServerSizeRules
+	(*ServerSize)(nil),                          // 58: zonhoren.phron.v1.ServerSize
+	(*ServerSizePrice)(nil),                     // 59: zonhoren.phron.v1.ServerSizePrice
+	(*ServerSizeProblem)(nil),                   // 60: zonhoren.phron.v1.ServerSizeProblem
+	(*OperatingSystem)(nil),                     // 61: zonhoren.phron.v1.OperatingSystem
+	(*Location)(nil),                            // 62: zonhoren.phron.v1.Location
+	(*Server)(nil),                              // 63: zonhoren.phron.v1.Server
+	(*SshKey)(nil),                              // 64: zonhoren.phron.v1.SshKey
+	(*ServerFirewall)(nil),                      // 65: zonhoren.phron.v1.ServerFirewall
+	(*ServerFirewallRule)(nil),                  // 66: zonhoren.phron.v1.ServerFirewallRule
+	(ServerFirewallAction)(0),                   // 67: zonhoren.phron.v1.ServerFirewallAction
+	(*ServerBackup)(nil),                        // 68: zonhoren.phron.v1.ServerBackup
+	(*ServerBackupLimits)(nil),                  // 69: zonhoren.phron.v1.ServerBackupLimits
+	(*CustomOperatingSystemSnapshotSource)(nil), // 70: zonhoren.phron.v1.CustomOperatingSystemSnapshotSource
+	(*CustomOperatingSystemBucketSource)(nil),   // 71: zonhoren.phron.v1.CustomOperatingSystemBucketSource
+	(*CustomOperatingSystem)(nil),               // 72: zonhoren.phron.v1.CustomOperatingSystem
+	(*timestamppb.Timestamp)(nil),               // 73: google.protobuf.Timestamp
+	(*ServerTrafficBucket)(nil),                 // 74: zonhoren.phron.v1.ServerTrafficBucket
 }
 var file_zonhoren_phron_v1_servers_proto_depIdxs = []int32{
-	46, // 0: zonhoren.phron.v1.GetServerPricingResponse.price:type_name -> zonhoren.phron.v1.ServerPrice
-	47, // 1: zonhoren.phron.v1.GetServerPricingResponse.rules:type_name -> zonhoren.phron.v1.ServerSizeRules
-	48, // 2: zonhoren.phron.v1.QuoteServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
-	49, // 3: zonhoren.phron.v1.QuoteServerResponse.price:type_name -> zonhoren.phron.v1.ServerSizePrice
-	50, // 4: zonhoren.phron.v1.QuoteServerResponse.problems:type_name -> zonhoren.phron.v1.ServerSizeProblem
-	51, // 5: zonhoren.phron.v1.ListOperatingSystemsResponse.operating_systems:type_name -> zonhoren.phron.v1.OperatingSystem
-	52, // 6: zonhoren.phron.v1.ListServerLocationsResponse.locations:type_name -> zonhoren.phron.v1.Location
-	48, // 7: zonhoren.phron.v1.CreateServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
-	53, // 8: zonhoren.phron.v1.CreateServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	53, // 9: zonhoren.phron.v1.ListServersResponse.servers:type_name -> zonhoren.phron.v1.Server
-	53, // 10: zonhoren.phron.v1.GetServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	53, // 11: zonhoren.phron.v1.DeleteServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	53, // 12: zonhoren.phron.v1.StartServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	53, // 13: zonhoren.phron.v1.StopServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	53, // 14: zonhoren.phron.v1.RebootServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	48, // 15: zonhoren.phron.v1.ResizeServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
-	53, // 16: zonhoren.phron.v1.ResizeServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	54, // 17: zonhoren.phron.v1.ListSshKeysResponse.ssh_keys:type_name -> zonhoren.phron.v1.SshKey
-	54, // 18: zonhoren.phron.v1.CreateSshKeyResponse.ssh_key:type_name -> zonhoren.phron.v1.SshKey
-	55, // 19: zonhoren.phron.v1.GetServerFirewallResponse.firewall:type_name -> zonhoren.phron.v1.ServerFirewall
-	56, // 20: zonhoren.phron.v1.ReplaceServerFirewallRequest.rules:type_name -> zonhoren.phron.v1.ServerFirewallRule
-	57, // 21: zonhoren.phron.v1.ReplaceServerFirewallRequest.default_inbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
-	57, // 22: zonhoren.phron.v1.ReplaceServerFirewallRequest.default_outbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
-	55, // 23: zonhoren.phron.v1.ReplaceServerFirewallResponse.firewall:type_name -> zonhoren.phron.v1.ServerFirewall
-	53, // 24: zonhoren.phron.v1.RequestServerMailPortsResponse.server:type_name -> zonhoren.phron.v1.Server
-	58, // 25: zonhoren.phron.v1.ListServerBackupsResponse.backups:type_name -> zonhoren.phron.v1.ServerBackup
-	59, // 26: zonhoren.phron.v1.ListServerBackupsResponse.limits:type_name -> zonhoren.phron.v1.ServerBackupLimits
-	58, // 27: zonhoren.phron.v1.CreateServerSnapshotResponse.snapshot:type_name -> zonhoren.phron.v1.ServerBackup
-	53, // 28: zonhoren.phron.v1.RestoreServerResponse.server:type_name -> zonhoren.phron.v1.Server
-	60, // 29: zonhoren.phron.v1.GetServerTrafficRequest.start_time:type_name -> google.protobuf.Timestamp
-	60, // 30: zonhoren.phron.v1.GetServerTrafficRequest.end_time:type_name -> google.protobuf.Timestamp
-	61, // 31: zonhoren.phron.v1.GetServerTrafficResponse.buckets:type_name -> zonhoren.phron.v1.ServerTrafficBucket
-	0,  // 32: zonhoren.phron.v1.ServerService.GetServerPricing:input_type -> zonhoren.phron.v1.GetServerPricingRequest
-	2,  // 33: zonhoren.phron.v1.ServerService.QuoteServer:input_type -> zonhoren.phron.v1.QuoteServerRequest
-	4,  // 34: zonhoren.phron.v1.ServerService.ListOperatingSystems:input_type -> zonhoren.phron.v1.ListOperatingSystemsRequest
-	6,  // 35: zonhoren.phron.v1.ServerService.ListServerLocations:input_type -> zonhoren.phron.v1.ListServerLocationsRequest
-	8,  // 36: zonhoren.phron.v1.ServerService.CreateServer:input_type -> zonhoren.phron.v1.CreateServerRequest
-	10, // 37: zonhoren.phron.v1.ServerService.ListServers:input_type -> zonhoren.phron.v1.ListServersRequest
-	12, // 38: zonhoren.phron.v1.ServerService.GetServer:input_type -> zonhoren.phron.v1.GetServerRequest
-	14, // 39: zonhoren.phron.v1.ServerService.DeleteServer:input_type -> zonhoren.phron.v1.DeleteServerRequest
-	16, // 40: zonhoren.phron.v1.ServerService.StartServer:input_type -> zonhoren.phron.v1.StartServerRequest
-	18, // 41: zonhoren.phron.v1.ServerService.StopServer:input_type -> zonhoren.phron.v1.StopServerRequest
-	20, // 42: zonhoren.phron.v1.ServerService.RebootServer:input_type -> zonhoren.phron.v1.RebootServerRequest
-	22, // 43: zonhoren.phron.v1.ServerService.ResizeServer:input_type -> zonhoren.phron.v1.ResizeServerRequest
-	24, // 44: zonhoren.phron.v1.ServerService.ListSshKeys:input_type -> zonhoren.phron.v1.ListSshKeysRequest
-	26, // 45: zonhoren.phron.v1.ServerService.CreateSshKey:input_type -> zonhoren.phron.v1.CreateSshKeyRequest
-	28, // 46: zonhoren.phron.v1.ServerService.DeleteSshKey:input_type -> zonhoren.phron.v1.DeleteSshKeyRequest
-	30, // 47: zonhoren.phron.v1.ServerService.GetServerFirewall:input_type -> zonhoren.phron.v1.GetServerFirewallRequest
-	32, // 48: zonhoren.phron.v1.ServerService.ReplaceServerFirewall:input_type -> zonhoren.phron.v1.ReplaceServerFirewallRequest
-	34, // 49: zonhoren.phron.v1.ServerService.RequestServerMailPorts:input_type -> zonhoren.phron.v1.RequestServerMailPortsRequest
-	36, // 50: zonhoren.phron.v1.ServerService.ListServerBackups:input_type -> zonhoren.phron.v1.ListServerBackupsRequest
-	38, // 51: zonhoren.phron.v1.ServerService.CreateServerSnapshot:input_type -> zonhoren.phron.v1.CreateServerSnapshotRequest
-	40, // 52: zonhoren.phron.v1.ServerService.DeleteServerSnapshot:input_type -> zonhoren.phron.v1.DeleteServerSnapshotRequest
-	42, // 53: zonhoren.phron.v1.ServerService.RestoreServer:input_type -> zonhoren.phron.v1.RestoreServerRequest
-	44, // 54: zonhoren.phron.v1.ServerService.GetServerTraffic:input_type -> zonhoren.phron.v1.GetServerTrafficRequest
-	1,  // 55: zonhoren.phron.v1.ServerService.GetServerPricing:output_type -> zonhoren.phron.v1.GetServerPricingResponse
-	3,  // 56: zonhoren.phron.v1.ServerService.QuoteServer:output_type -> zonhoren.phron.v1.QuoteServerResponse
-	5,  // 57: zonhoren.phron.v1.ServerService.ListOperatingSystems:output_type -> zonhoren.phron.v1.ListOperatingSystemsResponse
-	7,  // 58: zonhoren.phron.v1.ServerService.ListServerLocations:output_type -> zonhoren.phron.v1.ListServerLocationsResponse
-	9,  // 59: zonhoren.phron.v1.ServerService.CreateServer:output_type -> zonhoren.phron.v1.CreateServerResponse
-	11, // 60: zonhoren.phron.v1.ServerService.ListServers:output_type -> zonhoren.phron.v1.ListServersResponse
-	13, // 61: zonhoren.phron.v1.ServerService.GetServer:output_type -> zonhoren.phron.v1.GetServerResponse
-	15, // 62: zonhoren.phron.v1.ServerService.DeleteServer:output_type -> zonhoren.phron.v1.DeleteServerResponse
-	17, // 63: zonhoren.phron.v1.ServerService.StartServer:output_type -> zonhoren.phron.v1.StartServerResponse
-	19, // 64: zonhoren.phron.v1.ServerService.StopServer:output_type -> zonhoren.phron.v1.StopServerResponse
-	21, // 65: zonhoren.phron.v1.ServerService.RebootServer:output_type -> zonhoren.phron.v1.RebootServerResponse
-	23, // 66: zonhoren.phron.v1.ServerService.ResizeServer:output_type -> zonhoren.phron.v1.ResizeServerResponse
-	25, // 67: zonhoren.phron.v1.ServerService.ListSshKeys:output_type -> zonhoren.phron.v1.ListSshKeysResponse
-	27, // 68: zonhoren.phron.v1.ServerService.CreateSshKey:output_type -> zonhoren.phron.v1.CreateSshKeyResponse
-	29, // 69: zonhoren.phron.v1.ServerService.DeleteSshKey:output_type -> zonhoren.phron.v1.DeleteSshKeyResponse
-	31, // 70: zonhoren.phron.v1.ServerService.GetServerFirewall:output_type -> zonhoren.phron.v1.GetServerFirewallResponse
-	33, // 71: zonhoren.phron.v1.ServerService.ReplaceServerFirewall:output_type -> zonhoren.phron.v1.ReplaceServerFirewallResponse
-	35, // 72: zonhoren.phron.v1.ServerService.RequestServerMailPorts:output_type -> zonhoren.phron.v1.RequestServerMailPortsResponse
-	37, // 73: zonhoren.phron.v1.ServerService.ListServerBackups:output_type -> zonhoren.phron.v1.ListServerBackupsResponse
-	39, // 74: zonhoren.phron.v1.ServerService.CreateServerSnapshot:output_type -> zonhoren.phron.v1.CreateServerSnapshotResponse
-	41, // 75: zonhoren.phron.v1.ServerService.DeleteServerSnapshot:output_type -> zonhoren.phron.v1.DeleteServerSnapshotResponse
-	43, // 76: zonhoren.phron.v1.ServerService.RestoreServer:output_type -> zonhoren.phron.v1.RestoreServerResponse
-	45, // 77: zonhoren.phron.v1.ServerService.GetServerTraffic:output_type -> zonhoren.phron.v1.GetServerTrafficResponse
-	55, // [55:78] is the sub-list for method output_type
-	32, // [32:55] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	56, // 0: zonhoren.phron.v1.GetServerPricingResponse.price:type_name -> zonhoren.phron.v1.ServerPrice
+	57, // 1: zonhoren.phron.v1.GetServerPricingResponse.rules:type_name -> zonhoren.phron.v1.ServerSizeRules
+	58, // 2: zonhoren.phron.v1.QuoteServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
+	59, // 3: zonhoren.phron.v1.QuoteServerResponse.price:type_name -> zonhoren.phron.v1.ServerSizePrice
+	60, // 4: zonhoren.phron.v1.QuoteServerResponse.problems:type_name -> zonhoren.phron.v1.ServerSizeProblem
+	61, // 5: zonhoren.phron.v1.ListOperatingSystemsResponse.operating_systems:type_name -> zonhoren.phron.v1.OperatingSystem
+	62, // 6: zonhoren.phron.v1.ListServerLocationsResponse.locations:type_name -> zonhoren.phron.v1.Location
+	58, // 7: zonhoren.phron.v1.CreateServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
+	63, // 8: zonhoren.phron.v1.CreateServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	63, // 9: zonhoren.phron.v1.ListServersResponse.servers:type_name -> zonhoren.phron.v1.Server
+	63, // 10: zonhoren.phron.v1.GetServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	63, // 11: zonhoren.phron.v1.DeleteServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	63, // 12: zonhoren.phron.v1.StartServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	63, // 13: zonhoren.phron.v1.StopServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	63, // 14: zonhoren.phron.v1.RebootServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	58, // 15: zonhoren.phron.v1.ResizeServerRequest.size:type_name -> zonhoren.phron.v1.ServerSize
+	63, // 16: zonhoren.phron.v1.ResizeServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	64, // 17: zonhoren.phron.v1.ListSshKeysResponse.ssh_keys:type_name -> zonhoren.phron.v1.SshKey
+	64, // 18: zonhoren.phron.v1.CreateSshKeyResponse.ssh_key:type_name -> zonhoren.phron.v1.SshKey
+	65, // 19: zonhoren.phron.v1.GetServerFirewallResponse.firewall:type_name -> zonhoren.phron.v1.ServerFirewall
+	66, // 20: zonhoren.phron.v1.ReplaceServerFirewallRequest.rules:type_name -> zonhoren.phron.v1.ServerFirewallRule
+	67, // 21: zonhoren.phron.v1.ReplaceServerFirewallRequest.default_inbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
+	67, // 22: zonhoren.phron.v1.ReplaceServerFirewallRequest.default_outbound_action:type_name -> zonhoren.phron.v1.ServerFirewallAction
+	65, // 23: zonhoren.phron.v1.ReplaceServerFirewallResponse.firewall:type_name -> zonhoren.phron.v1.ServerFirewall
+	63, // 24: zonhoren.phron.v1.RequestServerMailPortsResponse.server:type_name -> zonhoren.phron.v1.Server
+	68, // 25: zonhoren.phron.v1.ListServerBackupsResponse.backups:type_name -> zonhoren.phron.v1.ServerBackup
+	69, // 26: zonhoren.phron.v1.ListServerBackupsResponse.limits:type_name -> zonhoren.phron.v1.ServerBackupLimits
+	68, // 27: zonhoren.phron.v1.CreateServerSnapshotResponse.snapshot:type_name -> zonhoren.phron.v1.ServerBackup
+	63, // 28: zonhoren.phron.v1.RestoreServerResponse.server:type_name -> zonhoren.phron.v1.Server
+	70, // 29: zonhoren.phron.v1.CreateCustomOperatingSystemRequest.snapshot:type_name -> zonhoren.phron.v1.CustomOperatingSystemSnapshotSource
+	71, // 30: zonhoren.phron.v1.CreateCustomOperatingSystemRequest.bucket_object:type_name -> zonhoren.phron.v1.CustomOperatingSystemBucketSource
+	72, // 31: zonhoren.phron.v1.CreateCustomOperatingSystemResponse.custom_operating_system:type_name -> zonhoren.phron.v1.CustomOperatingSystem
+	72, // 32: zonhoren.phron.v1.GetCustomOperatingSystemResponse.custom_operating_system:type_name -> zonhoren.phron.v1.CustomOperatingSystem
+	72, // 33: zonhoren.phron.v1.ListCustomOperatingSystemsResponse.custom_operating_systems:type_name -> zonhoren.phron.v1.CustomOperatingSystem
+	72, // 34: zonhoren.phron.v1.UpdateCustomOperatingSystemResponse.custom_operating_system:type_name -> zonhoren.phron.v1.CustomOperatingSystem
+	73, // 35: zonhoren.phron.v1.GetServerTrafficRequest.start_time:type_name -> google.protobuf.Timestamp
+	73, // 36: zonhoren.phron.v1.GetServerTrafficRequest.end_time:type_name -> google.protobuf.Timestamp
+	74, // 37: zonhoren.phron.v1.GetServerTrafficResponse.buckets:type_name -> zonhoren.phron.v1.ServerTrafficBucket
+	0,  // 38: zonhoren.phron.v1.ServerService.GetServerPricing:input_type -> zonhoren.phron.v1.GetServerPricingRequest
+	2,  // 39: zonhoren.phron.v1.ServerService.QuoteServer:input_type -> zonhoren.phron.v1.QuoteServerRequest
+	4,  // 40: zonhoren.phron.v1.ServerService.ListOperatingSystems:input_type -> zonhoren.phron.v1.ListOperatingSystemsRequest
+	6,  // 41: zonhoren.phron.v1.ServerService.ListServerLocations:input_type -> zonhoren.phron.v1.ListServerLocationsRequest
+	8,  // 42: zonhoren.phron.v1.ServerService.CreateServer:input_type -> zonhoren.phron.v1.CreateServerRequest
+	10, // 43: zonhoren.phron.v1.ServerService.ListServers:input_type -> zonhoren.phron.v1.ListServersRequest
+	12, // 44: zonhoren.phron.v1.ServerService.GetServer:input_type -> zonhoren.phron.v1.GetServerRequest
+	14, // 45: zonhoren.phron.v1.ServerService.DeleteServer:input_type -> zonhoren.phron.v1.DeleteServerRequest
+	16, // 46: zonhoren.phron.v1.ServerService.StartServer:input_type -> zonhoren.phron.v1.StartServerRequest
+	18, // 47: zonhoren.phron.v1.ServerService.StopServer:input_type -> zonhoren.phron.v1.StopServerRequest
+	20, // 48: zonhoren.phron.v1.ServerService.RebootServer:input_type -> zonhoren.phron.v1.RebootServerRequest
+	22, // 49: zonhoren.phron.v1.ServerService.ResizeServer:input_type -> zonhoren.phron.v1.ResizeServerRequest
+	24, // 50: zonhoren.phron.v1.ServerService.ListSshKeys:input_type -> zonhoren.phron.v1.ListSshKeysRequest
+	26, // 51: zonhoren.phron.v1.ServerService.CreateSshKey:input_type -> zonhoren.phron.v1.CreateSshKeyRequest
+	28, // 52: zonhoren.phron.v1.ServerService.DeleteSshKey:input_type -> zonhoren.phron.v1.DeleteSshKeyRequest
+	30, // 53: zonhoren.phron.v1.ServerService.GetServerFirewall:input_type -> zonhoren.phron.v1.GetServerFirewallRequest
+	32, // 54: zonhoren.phron.v1.ServerService.ReplaceServerFirewall:input_type -> zonhoren.phron.v1.ReplaceServerFirewallRequest
+	34, // 55: zonhoren.phron.v1.ServerService.RequestServerMailPorts:input_type -> zonhoren.phron.v1.RequestServerMailPortsRequest
+	36, // 56: zonhoren.phron.v1.ServerService.ListServerBackups:input_type -> zonhoren.phron.v1.ListServerBackupsRequest
+	38, // 57: zonhoren.phron.v1.ServerService.CreateServerSnapshot:input_type -> zonhoren.phron.v1.CreateServerSnapshotRequest
+	40, // 58: zonhoren.phron.v1.ServerService.DeleteServerSnapshot:input_type -> zonhoren.phron.v1.DeleteServerSnapshotRequest
+	42, // 59: zonhoren.phron.v1.ServerService.RestoreServer:input_type -> zonhoren.phron.v1.RestoreServerRequest
+	44, // 60: zonhoren.phron.v1.ServerService.CreateCustomOperatingSystem:input_type -> zonhoren.phron.v1.CreateCustomOperatingSystemRequest
+	46, // 61: zonhoren.phron.v1.ServerService.GetCustomOperatingSystem:input_type -> zonhoren.phron.v1.GetCustomOperatingSystemRequest
+	48, // 62: zonhoren.phron.v1.ServerService.ListCustomOperatingSystems:input_type -> zonhoren.phron.v1.ListCustomOperatingSystemsRequest
+	50, // 63: zonhoren.phron.v1.ServerService.UpdateCustomOperatingSystem:input_type -> zonhoren.phron.v1.UpdateCustomOperatingSystemRequest
+	52, // 64: zonhoren.phron.v1.ServerService.DeleteCustomOperatingSystem:input_type -> zonhoren.phron.v1.DeleteCustomOperatingSystemRequest
+	54, // 65: zonhoren.phron.v1.ServerService.GetServerTraffic:input_type -> zonhoren.phron.v1.GetServerTrafficRequest
+	1,  // 66: zonhoren.phron.v1.ServerService.GetServerPricing:output_type -> zonhoren.phron.v1.GetServerPricingResponse
+	3,  // 67: zonhoren.phron.v1.ServerService.QuoteServer:output_type -> zonhoren.phron.v1.QuoteServerResponse
+	5,  // 68: zonhoren.phron.v1.ServerService.ListOperatingSystems:output_type -> zonhoren.phron.v1.ListOperatingSystemsResponse
+	7,  // 69: zonhoren.phron.v1.ServerService.ListServerLocations:output_type -> zonhoren.phron.v1.ListServerLocationsResponse
+	9,  // 70: zonhoren.phron.v1.ServerService.CreateServer:output_type -> zonhoren.phron.v1.CreateServerResponse
+	11, // 71: zonhoren.phron.v1.ServerService.ListServers:output_type -> zonhoren.phron.v1.ListServersResponse
+	13, // 72: zonhoren.phron.v1.ServerService.GetServer:output_type -> zonhoren.phron.v1.GetServerResponse
+	15, // 73: zonhoren.phron.v1.ServerService.DeleteServer:output_type -> zonhoren.phron.v1.DeleteServerResponse
+	17, // 74: zonhoren.phron.v1.ServerService.StartServer:output_type -> zonhoren.phron.v1.StartServerResponse
+	19, // 75: zonhoren.phron.v1.ServerService.StopServer:output_type -> zonhoren.phron.v1.StopServerResponse
+	21, // 76: zonhoren.phron.v1.ServerService.RebootServer:output_type -> zonhoren.phron.v1.RebootServerResponse
+	23, // 77: zonhoren.phron.v1.ServerService.ResizeServer:output_type -> zonhoren.phron.v1.ResizeServerResponse
+	25, // 78: zonhoren.phron.v1.ServerService.ListSshKeys:output_type -> zonhoren.phron.v1.ListSshKeysResponse
+	27, // 79: zonhoren.phron.v1.ServerService.CreateSshKey:output_type -> zonhoren.phron.v1.CreateSshKeyResponse
+	29, // 80: zonhoren.phron.v1.ServerService.DeleteSshKey:output_type -> zonhoren.phron.v1.DeleteSshKeyResponse
+	31, // 81: zonhoren.phron.v1.ServerService.GetServerFirewall:output_type -> zonhoren.phron.v1.GetServerFirewallResponse
+	33, // 82: zonhoren.phron.v1.ServerService.ReplaceServerFirewall:output_type -> zonhoren.phron.v1.ReplaceServerFirewallResponse
+	35, // 83: zonhoren.phron.v1.ServerService.RequestServerMailPorts:output_type -> zonhoren.phron.v1.RequestServerMailPortsResponse
+	37, // 84: zonhoren.phron.v1.ServerService.ListServerBackups:output_type -> zonhoren.phron.v1.ListServerBackupsResponse
+	39, // 85: zonhoren.phron.v1.ServerService.CreateServerSnapshot:output_type -> zonhoren.phron.v1.CreateServerSnapshotResponse
+	41, // 86: zonhoren.phron.v1.ServerService.DeleteServerSnapshot:output_type -> zonhoren.phron.v1.DeleteServerSnapshotResponse
+	43, // 87: zonhoren.phron.v1.ServerService.RestoreServer:output_type -> zonhoren.phron.v1.RestoreServerResponse
+	45, // 88: zonhoren.phron.v1.ServerService.CreateCustomOperatingSystem:output_type -> zonhoren.phron.v1.CreateCustomOperatingSystemResponse
+	47, // 89: zonhoren.phron.v1.ServerService.GetCustomOperatingSystem:output_type -> zonhoren.phron.v1.GetCustomOperatingSystemResponse
+	49, // 90: zonhoren.phron.v1.ServerService.ListCustomOperatingSystems:output_type -> zonhoren.phron.v1.ListCustomOperatingSystemsResponse
+	51, // 91: zonhoren.phron.v1.ServerService.UpdateCustomOperatingSystem:output_type -> zonhoren.phron.v1.UpdateCustomOperatingSystemResponse
+	53, // 92: zonhoren.phron.v1.ServerService.DeleteCustomOperatingSystem:output_type -> zonhoren.phron.v1.DeleteCustomOperatingSystemResponse
+	55, // 93: zonhoren.phron.v1.ServerService.GetServerTraffic:output_type -> zonhoren.phron.v1.GetServerTrafficResponse
+	66, // [66:94] is the sub-list for method output_type
+	38, // [38:66] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_zonhoren_phron_v1_servers_proto_init() }
@@ -2680,13 +3379,19 @@ func file_zonhoren_phron_v1_servers_proto_init() {
 	file_zonhoren_phron_v1_servers_proto_msgTypes[1].OneofWrappers = []any{}
 	file_zonhoren_phron_v1_servers_proto_msgTypes[2].OneofWrappers = []any{}
 	file_zonhoren_phron_v1_servers_proto_msgTypes[3].OneofWrappers = []any{}
+	file_zonhoren_phron_v1_servers_proto_msgTypes[44].OneofWrappers = []any{
+		(*CreateCustomOperatingSystemRequest_Snapshot)(nil),
+		(*CreateCustomOperatingSystemRequest_BucketObject)(nil),
+		(*CreateCustomOperatingSystemRequest_CustomOperatingSystemId)(nil),
+	}
+	file_zonhoren_phron_v1_servers_proto_msgTypes[50].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_zonhoren_phron_v1_servers_proto_rawDesc), len(file_zonhoren_phron_v1_servers_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   46,
+			NumMessages:   56,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

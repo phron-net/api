@@ -98,6 +98,21 @@ const (
 	// ServerServiceRestoreServerProcedure is the fully-qualified name of the ServerService's
 	// RestoreServer RPC.
 	ServerServiceRestoreServerProcedure = "/zonhoren.phron.v1.ServerService/RestoreServer"
+	// ServerServiceCreateCustomOperatingSystemProcedure is the fully-qualified name of the
+	// ServerService's CreateCustomOperatingSystem RPC.
+	ServerServiceCreateCustomOperatingSystemProcedure = "/zonhoren.phron.v1.ServerService/CreateCustomOperatingSystem"
+	// ServerServiceGetCustomOperatingSystemProcedure is the fully-qualified name of the ServerService's
+	// GetCustomOperatingSystem RPC.
+	ServerServiceGetCustomOperatingSystemProcedure = "/zonhoren.phron.v1.ServerService/GetCustomOperatingSystem"
+	// ServerServiceListCustomOperatingSystemsProcedure is the fully-qualified name of the
+	// ServerService's ListCustomOperatingSystems RPC.
+	ServerServiceListCustomOperatingSystemsProcedure = "/zonhoren.phron.v1.ServerService/ListCustomOperatingSystems"
+	// ServerServiceUpdateCustomOperatingSystemProcedure is the fully-qualified name of the
+	// ServerService's UpdateCustomOperatingSystem RPC.
+	ServerServiceUpdateCustomOperatingSystemProcedure = "/zonhoren.phron.v1.ServerService/UpdateCustomOperatingSystem"
+	// ServerServiceDeleteCustomOperatingSystemProcedure is the fully-qualified name of the
+	// ServerService's DeleteCustomOperatingSystem RPC.
+	ServerServiceDeleteCustomOperatingSystemProcedure = "/zonhoren.phron.v1.ServerService/DeleteCustomOperatingSystem"
 	// ServerServiceGetServerTrafficProcedure is the fully-qualified name of the ServerService's
 	// GetServerTraffic RPC.
 	ServerServiceGetServerTrafficProcedure = "/zonhoren.phron.v1.ServerService/GetServerTraffic"
@@ -232,6 +247,32 @@ type ServerServiceClient interface {
 	// FAILED_PRECONDITION unless the backup is READY and the Server is running
 	// or stopped.
 	RestoreServer(context.Context, *connect.Request[v1.RestoreServerRequest]) (*connect.Response[v1.RestoreServerResponse], error)
+	// CreateCustomOperatingSystem starts saving a disk as a Custom Operating
+	// System of a Workspace and returns it in state IMPORTING; read it again with
+	// GetCustomOperatingSystem until it is READY or FAILED. The source is a
+	// Snapshot of a Server of this Organization (the Location is the Server's),
+	// an object in one of the Organization's own Object Storage buckets (the
+	// caller needs read access to that bucket; the object's size is read before
+	// the import starts and a size over the platform's limit is
+	// INVALID_ARGUMENT; the object must be a raw or qcow2 disk image, not an ISO
+	// or an archive), or another Custom Operating System (a copy, optionally in
+	// another Location). It is billed from the moment it is accepted.
+	// NOT_FOUND for a source, Workspace, bucket or object that is not the
+	// caller's. FAILED_PRECONDITION when the balance is not positive, when the
+	// Snapshot is not READY, or when its Server is quarantined. Idempotent on
+	// request_id: the same request_id and fields return the same record; other
+	// fields are ALREADY_EXISTS.
+	CreateCustomOperatingSystem(context.Context, *connect.Request[v1.CreateCustomOperatingSystemRequest]) (*connect.Response[v1.CreateCustomOperatingSystemResponse], error)
+	GetCustomOperatingSystem(context.Context, *connect.Request[v1.GetCustomOperatingSystemRequest]) (*connect.Response[v1.GetCustomOperatingSystemResponse], error)
+	// ListCustomOperatingSystems lists the Custom Operating Systems of the
+	// Organization (or of one Workspace), newest first.
+	ListCustomOperatingSystems(context.Context, *connect.Request[v1.ListCustomOperatingSystemsRequest]) (*connect.Response[v1.ListCustomOperatingSystemsResponse], error)
+	// UpdateCustomOperatingSystem changes the name, the description and the
+	// cloud-init settings. Servers already created are not affected.
+	UpdateCustomOperatingSystem(context.Context, *connect.Request[v1.UpdateCustomOperatingSystemRequest]) (*connect.Response[v1.UpdateCustomOperatingSystemResponse], error)
+	// DeleteCustomOperatingSystem deletes the disk for good and stops its
+	// billing. Servers created from it keep their own disks. Idempotent.
+	DeleteCustomOperatingSystem(context.Context, *connect.Request[v1.DeleteCustomOperatingSystemRequest]) (*connect.Response[v1.DeleteCustomOperatingSystemResponse], error)
 	// GetServerTraffic returns a Server's network traffic in hourly buckets
 	// over a time range. An hour with no measurement has no bucket, which is not
 	// the same as zero traffic.
@@ -381,6 +422,36 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(serverServiceMethods.ByName("RestoreServer")),
 			connect.WithClientOptions(opts...),
 		),
+		createCustomOperatingSystem: connect.NewClient[v1.CreateCustomOperatingSystemRequest, v1.CreateCustomOperatingSystemResponse](
+			httpClient,
+			baseURL+ServerServiceCreateCustomOperatingSystemProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("CreateCustomOperatingSystem")),
+			connect.WithClientOptions(opts...),
+		),
+		getCustomOperatingSystem: connect.NewClient[v1.GetCustomOperatingSystemRequest, v1.GetCustomOperatingSystemResponse](
+			httpClient,
+			baseURL+ServerServiceGetCustomOperatingSystemProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("GetCustomOperatingSystem")),
+			connect.WithClientOptions(opts...),
+		),
+		listCustomOperatingSystems: connect.NewClient[v1.ListCustomOperatingSystemsRequest, v1.ListCustomOperatingSystemsResponse](
+			httpClient,
+			baseURL+ServerServiceListCustomOperatingSystemsProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("ListCustomOperatingSystems")),
+			connect.WithClientOptions(opts...),
+		),
+		updateCustomOperatingSystem: connect.NewClient[v1.UpdateCustomOperatingSystemRequest, v1.UpdateCustomOperatingSystemResponse](
+			httpClient,
+			baseURL+ServerServiceUpdateCustomOperatingSystemProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("UpdateCustomOperatingSystem")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteCustomOperatingSystem: connect.NewClient[v1.DeleteCustomOperatingSystemRequest, v1.DeleteCustomOperatingSystemResponse](
+			httpClient,
+			baseURL+ServerServiceDeleteCustomOperatingSystemProcedure,
+			connect.WithSchema(serverServiceMethods.ByName("DeleteCustomOperatingSystem")),
+			connect.WithClientOptions(opts...),
+		),
 		getServerTraffic: connect.NewClient[v1.GetServerTrafficRequest, v1.GetServerTrafficResponse](
 			httpClient,
 			baseURL+ServerServiceGetServerTrafficProcedure,
@@ -392,29 +463,34 @@ func NewServerServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // serverServiceClient implements ServerServiceClient.
 type serverServiceClient struct {
-	getServerPricing       *connect.Client[v1.GetServerPricingRequest, v1.GetServerPricingResponse]
-	quoteServer            *connect.Client[v1.QuoteServerRequest, v1.QuoteServerResponse]
-	listOperatingSystems   *connect.Client[v1.ListOperatingSystemsRequest, v1.ListOperatingSystemsResponse]
-	listServerLocations    *connect.Client[v1.ListServerLocationsRequest, v1.ListServerLocationsResponse]
-	createServer           *connect.Client[v1.CreateServerRequest, v1.CreateServerResponse]
-	listServers            *connect.Client[v1.ListServersRequest, v1.ListServersResponse]
-	getServer              *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
-	deleteServer           *connect.Client[v1.DeleteServerRequest, v1.DeleteServerResponse]
-	startServer            *connect.Client[v1.StartServerRequest, v1.StartServerResponse]
-	stopServer             *connect.Client[v1.StopServerRequest, v1.StopServerResponse]
-	rebootServer           *connect.Client[v1.RebootServerRequest, v1.RebootServerResponse]
-	resizeServer           *connect.Client[v1.ResizeServerRequest, v1.ResizeServerResponse]
-	listSshKeys            *connect.Client[v1.ListSshKeysRequest, v1.ListSshKeysResponse]
-	createSshKey           *connect.Client[v1.CreateSshKeyRequest, v1.CreateSshKeyResponse]
-	deleteSshKey           *connect.Client[v1.DeleteSshKeyRequest, v1.DeleteSshKeyResponse]
-	getServerFirewall      *connect.Client[v1.GetServerFirewallRequest, v1.GetServerFirewallResponse]
-	replaceServerFirewall  *connect.Client[v1.ReplaceServerFirewallRequest, v1.ReplaceServerFirewallResponse]
-	requestServerMailPorts *connect.Client[v1.RequestServerMailPortsRequest, v1.RequestServerMailPortsResponse]
-	listServerBackups      *connect.Client[v1.ListServerBackupsRequest, v1.ListServerBackupsResponse]
-	createServerSnapshot   *connect.Client[v1.CreateServerSnapshotRequest, v1.CreateServerSnapshotResponse]
-	deleteServerSnapshot   *connect.Client[v1.DeleteServerSnapshotRequest, v1.DeleteServerSnapshotResponse]
-	restoreServer          *connect.Client[v1.RestoreServerRequest, v1.RestoreServerResponse]
-	getServerTraffic       *connect.Client[v1.GetServerTrafficRequest, v1.GetServerTrafficResponse]
+	getServerPricing            *connect.Client[v1.GetServerPricingRequest, v1.GetServerPricingResponse]
+	quoteServer                 *connect.Client[v1.QuoteServerRequest, v1.QuoteServerResponse]
+	listOperatingSystems        *connect.Client[v1.ListOperatingSystemsRequest, v1.ListOperatingSystemsResponse]
+	listServerLocations         *connect.Client[v1.ListServerLocationsRequest, v1.ListServerLocationsResponse]
+	createServer                *connect.Client[v1.CreateServerRequest, v1.CreateServerResponse]
+	listServers                 *connect.Client[v1.ListServersRequest, v1.ListServersResponse]
+	getServer                   *connect.Client[v1.GetServerRequest, v1.GetServerResponse]
+	deleteServer                *connect.Client[v1.DeleteServerRequest, v1.DeleteServerResponse]
+	startServer                 *connect.Client[v1.StartServerRequest, v1.StartServerResponse]
+	stopServer                  *connect.Client[v1.StopServerRequest, v1.StopServerResponse]
+	rebootServer                *connect.Client[v1.RebootServerRequest, v1.RebootServerResponse]
+	resizeServer                *connect.Client[v1.ResizeServerRequest, v1.ResizeServerResponse]
+	listSshKeys                 *connect.Client[v1.ListSshKeysRequest, v1.ListSshKeysResponse]
+	createSshKey                *connect.Client[v1.CreateSshKeyRequest, v1.CreateSshKeyResponse]
+	deleteSshKey                *connect.Client[v1.DeleteSshKeyRequest, v1.DeleteSshKeyResponse]
+	getServerFirewall           *connect.Client[v1.GetServerFirewallRequest, v1.GetServerFirewallResponse]
+	replaceServerFirewall       *connect.Client[v1.ReplaceServerFirewallRequest, v1.ReplaceServerFirewallResponse]
+	requestServerMailPorts      *connect.Client[v1.RequestServerMailPortsRequest, v1.RequestServerMailPortsResponse]
+	listServerBackups           *connect.Client[v1.ListServerBackupsRequest, v1.ListServerBackupsResponse]
+	createServerSnapshot        *connect.Client[v1.CreateServerSnapshotRequest, v1.CreateServerSnapshotResponse]
+	deleteServerSnapshot        *connect.Client[v1.DeleteServerSnapshotRequest, v1.DeleteServerSnapshotResponse]
+	restoreServer               *connect.Client[v1.RestoreServerRequest, v1.RestoreServerResponse]
+	createCustomOperatingSystem *connect.Client[v1.CreateCustomOperatingSystemRequest, v1.CreateCustomOperatingSystemResponse]
+	getCustomOperatingSystem    *connect.Client[v1.GetCustomOperatingSystemRequest, v1.GetCustomOperatingSystemResponse]
+	listCustomOperatingSystems  *connect.Client[v1.ListCustomOperatingSystemsRequest, v1.ListCustomOperatingSystemsResponse]
+	updateCustomOperatingSystem *connect.Client[v1.UpdateCustomOperatingSystemRequest, v1.UpdateCustomOperatingSystemResponse]
+	deleteCustomOperatingSystem *connect.Client[v1.DeleteCustomOperatingSystemRequest, v1.DeleteCustomOperatingSystemResponse]
+	getServerTraffic            *connect.Client[v1.GetServerTrafficRequest, v1.GetServerTrafficResponse]
 }
 
 // GetServerPricing calls zonhoren.phron.v1.ServerService.GetServerPricing.
@@ -525,6 +601,31 @@ func (c *serverServiceClient) DeleteServerSnapshot(ctx context.Context, req *con
 // RestoreServer calls zonhoren.phron.v1.ServerService.RestoreServer.
 func (c *serverServiceClient) RestoreServer(ctx context.Context, req *connect.Request[v1.RestoreServerRequest]) (*connect.Response[v1.RestoreServerResponse], error) {
 	return c.restoreServer.CallUnary(ctx, req)
+}
+
+// CreateCustomOperatingSystem calls zonhoren.phron.v1.ServerService.CreateCustomOperatingSystem.
+func (c *serverServiceClient) CreateCustomOperatingSystem(ctx context.Context, req *connect.Request[v1.CreateCustomOperatingSystemRequest]) (*connect.Response[v1.CreateCustomOperatingSystemResponse], error) {
+	return c.createCustomOperatingSystem.CallUnary(ctx, req)
+}
+
+// GetCustomOperatingSystem calls zonhoren.phron.v1.ServerService.GetCustomOperatingSystem.
+func (c *serverServiceClient) GetCustomOperatingSystem(ctx context.Context, req *connect.Request[v1.GetCustomOperatingSystemRequest]) (*connect.Response[v1.GetCustomOperatingSystemResponse], error) {
+	return c.getCustomOperatingSystem.CallUnary(ctx, req)
+}
+
+// ListCustomOperatingSystems calls zonhoren.phron.v1.ServerService.ListCustomOperatingSystems.
+func (c *serverServiceClient) ListCustomOperatingSystems(ctx context.Context, req *connect.Request[v1.ListCustomOperatingSystemsRequest]) (*connect.Response[v1.ListCustomOperatingSystemsResponse], error) {
+	return c.listCustomOperatingSystems.CallUnary(ctx, req)
+}
+
+// UpdateCustomOperatingSystem calls zonhoren.phron.v1.ServerService.UpdateCustomOperatingSystem.
+func (c *serverServiceClient) UpdateCustomOperatingSystem(ctx context.Context, req *connect.Request[v1.UpdateCustomOperatingSystemRequest]) (*connect.Response[v1.UpdateCustomOperatingSystemResponse], error) {
+	return c.updateCustomOperatingSystem.CallUnary(ctx, req)
+}
+
+// DeleteCustomOperatingSystem calls zonhoren.phron.v1.ServerService.DeleteCustomOperatingSystem.
+func (c *serverServiceClient) DeleteCustomOperatingSystem(ctx context.Context, req *connect.Request[v1.DeleteCustomOperatingSystemRequest]) (*connect.Response[v1.DeleteCustomOperatingSystemResponse], error) {
+	return c.deleteCustomOperatingSystem.CallUnary(ctx, req)
 }
 
 // GetServerTraffic calls zonhoren.phron.v1.ServerService.GetServerTraffic.
@@ -661,6 +762,32 @@ type ServerServiceHandler interface {
 	// FAILED_PRECONDITION unless the backup is READY and the Server is running
 	// or stopped.
 	RestoreServer(context.Context, *connect.Request[v1.RestoreServerRequest]) (*connect.Response[v1.RestoreServerResponse], error)
+	// CreateCustomOperatingSystem starts saving a disk as a Custom Operating
+	// System of a Workspace and returns it in state IMPORTING; read it again with
+	// GetCustomOperatingSystem until it is READY or FAILED. The source is a
+	// Snapshot of a Server of this Organization (the Location is the Server's),
+	// an object in one of the Organization's own Object Storage buckets (the
+	// caller needs read access to that bucket; the object's size is read before
+	// the import starts and a size over the platform's limit is
+	// INVALID_ARGUMENT; the object must be a raw or qcow2 disk image, not an ISO
+	// or an archive), or another Custom Operating System (a copy, optionally in
+	// another Location). It is billed from the moment it is accepted.
+	// NOT_FOUND for a source, Workspace, bucket or object that is not the
+	// caller's. FAILED_PRECONDITION when the balance is not positive, when the
+	// Snapshot is not READY, or when its Server is quarantined. Idempotent on
+	// request_id: the same request_id and fields return the same record; other
+	// fields are ALREADY_EXISTS.
+	CreateCustomOperatingSystem(context.Context, *connect.Request[v1.CreateCustomOperatingSystemRequest]) (*connect.Response[v1.CreateCustomOperatingSystemResponse], error)
+	GetCustomOperatingSystem(context.Context, *connect.Request[v1.GetCustomOperatingSystemRequest]) (*connect.Response[v1.GetCustomOperatingSystemResponse], error)
+	// ListCustomOperatingSystems lists the Custom Operating Systems of the
+	// Organization (or of one Workspace), newest first.
+	ListCustomOperatingSystems(context.Context, *connect.Request[v1.ListCustomOperatingSystemsRequest]) (*connect.Response[v1.ListCustomOperatingSystemsResponse], error)
+	// UpdateCustomOperatingSystem changes the name, the description and the
+	// cloud-init settings. Servers already created are not affected.
+	UpdateCustomOperatingSystem(context.Context, *connect.Request[v1.UpdateCustomOperatingSystemRequest]) (*connect.Response[v1.UpdateCustomOperatingSystemResponse], error)
+	// DeleteCustomOperatingSystem deletes the disk for good and stops its
+	// billing. Servers created from it keep their own disks. Idempotent.
+	DeleteCustomOperatingSystem(context.Context, *connect.Request[v1.DeleteCustomOperatingSystemRequest]) (*connect.Response[v1.DeleteCustomOperatingSystemResponse], error)
 	// GetServerTraffic returns a Server's network traffic in hourly buckets
 	// over a time range. An hour with no measurement has no bucket, which is not
 	// the same as zero traffic.
@@ -806,6 +933,36 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(serverServiceMethods.ByName("RestoreServer")),
 		connect.WithHandlerOptions(opts...),
 	)
+	serverServiceCreateCustomOperatingSystemHandler := connect.NewUnaryHandler(
+		ServerServiceCreateCustomOperatingSystemProcedure,
+		svc.CreateCustomOperatingSystem,
+		connect.WithSchema(serverServiceMethods.ByName("CreateCustomOperatingSystem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serverServiceGetCustomOperatingSystemHandler := connect.NewUnaryHandler(
+		ServerServiceGetCustomOperatingSystemProcedure,
+		svc.GetCustomOperatingSystem,
+		connect.WithSchema(serverServiceMethods.ByName("GetCustomOperatingSystem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serverServiceListCustomOperatingSystemsHandler := connect.NewUnaryHandler(
+		ServerServiceListCustomOperatingSystemsProcedure,
+		svc.ListCustomOperatingSystems,
+		connect.WithSchema(serverServiceMethods.ByName("ListCustomOperatingSystems")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serverServiceUpdateCustomOperatingSystemHandler := connect.NewUnaryHandler(
+		ServerServiceUpdateCustomOperatingSystemProcedure,
+		svc.UpdateCustomOperatingSystem,
+		connect.WithSchema(serverServiceMethods.ByName("UpdateCustomOperatingSystem")),
+		connect.WithHandlerOptions(opts...),
+	)
+	serverServiceDeleteCustomOperatingSystemHandler := connect.NewUnaryHandler(
+		ServerServiceDeleteCustomOperatingSystemProcedure,
+		svc.DeleteCustomOperatingSystem,
+		connect.WithSchema(serverServiceMethods.ByName("DeleteCustomOperatingSystem")),
+		connect.WithHandlerOptions(opts...),
+	)
 	serverServiceGetServerTrafficHandler := connect.NewUnaryHandler(
 		ServerServiceGetServerTrafficProcedure,
 		svc.GetServerTraffic,
@@ -858,6 +1015,16 @@ func NewServerServiceHandler(svc ServerServiceHandler, opts ...connect.HandlerOp
 			serverServiceDeleteServerSnapshotHandler.ServeHTTP(w, r)
 		case ServerServiceRestoreServerProcedure:
 			serverServiceRestoreServerHandler.ServeHTTP(w, r)
+		case ServerServiceCreateCustomOperatingSystemProcedure:
+			serverServiceCreateCustomOperatingSystemHandler.ServeHTTP(w, r)
+		case ServerServiceGetCustomOperatingSystemProcedure:
+			serverServiceGetCustomOperatingSystemHandler.ServeHTTP(w, r)
+		case ServerServiceListCustomOperatingSystemsProcedure:
+			serverServiceListCustomOperatingSystemsHandler.ServeHTTP(w, r)
+		case ServerServiceUpdateCustomOperatingSystemProcedure:
+			serverServiceUpdateCustomOperatingSystemHandler.ServeHTTP(w, r)
+		case ServerServiceDeleteCustomOperatingSystemProcedure:
+			serverServiceDeleteCustomOperatingSystemHandler.ServeHTTP(w, r)
 		case ServerServiceGetServerTrafficProcedure:
 			serverServiceGetServerTrafficHandler.ServeHTTP(w, r)
 		default:
@@ -955,6 +1122,26 @@ func (UnimplementedServerServiceHandler) DeleteServerSnapshot(context.Context, *
 
 func (UnimplementedServerServiceHandler) RestoreServer(context.Context, *connect.Request[v1.RestoreServerRequest]) (*connect.Response[v1.RestoreServerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.RestoreServer is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) CreateCustomOperatingSystem(context.Context, *connect.Request[v1.CreateCustomOperatingSystemRequest]) (*connect.Response[v1.CreateCustomOperatingSystemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.CreateCustomOperatingSystem is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) GetCustomOperatingSystem(context.Context, *connect.Request[v1.GetCustomOperatingSystemRequest]) (*connect.Response[v1.GetCustomOperatingSystemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.GetCustomOperatingSystem is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) ListCustomOperatingSystems(context.Context, *connect.Request[v1.ListCustomOperatingSystemsRequest]) (*connect.Response[v1.ListCustomOperatingSystemsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.ListCustomOperatingSystems is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) UpdateCustomOperatingSystem(context.Context, *connect.Request[v1.UpdateCustomOperatingSystemRequest]) (*connect.Response[v1.UpdateCustomOperatingSystemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.UpdateCustomOperatingSystem is not implemented"))
+}
+
+func (UnimplementedServerServiceHandler) DeleteCustomOperatingSystem(context.Context, *connect.Request[v1.DeleteCustomOperatingSystemRequest]) (*connect.Response[v1.DeleteCustomOperatingSystemResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("zonhoren.phron.v1.ServerService.DeleteCustomOperatingSystem is not implemented"))
 }
 
 func (UnimplementedServerServiceHandler) GetServerTraffic(context.Context, *connect.Request[v1.GetServerTrafficRequest]) (*connect.Response[v1.GetServerTrafficResponse], error) {
