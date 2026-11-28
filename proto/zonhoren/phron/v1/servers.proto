@@ -173,6 +173,33 @@ service ServerService {
   // or stopped.
   rpc RestoreServer(RestoreServerRequest) returns (RestoreServerResponse);
 
+  // CreateCustomOperatingSystem starts saving a disk as a Custom Operating
+  // System of a Workspace and returns it in state IMPORTING; read it again with
+  // GetCustomOperatingSystem until it is READY or FAILED. The source is a
+  // Snapshot of a Server of this Organization (the Location is the Server's),
+  // an object in one of the Organization's own Object Storage buckets (the
+  // caller needs read access to that bucket; the object's size is read before
+  // the import starts and a size over the platform's limit is
+  // INVALID_ARGUMENT; the object must be a raw or qcow2 disk image, not an ISO
+  // or an archive), or another Custom Operating System (a copy, optionally in
+  // another Location). It is billed from the moment it is accepted.
+  // NOT_FOUND for a source, Workspace, bucket or object that is not the
+  // caller's. FAILED_PRECONDITION when the balance is not positive, when the
+  // Snapshot is not READY, or when its Server is quarantined. Idempotent on
+  // request_id: the same request_id and fields return the same record; other
+  // fields are ALREADY_EXISTS.
+  rpc CreateCustomOperatingSystem(CreateCustomOperatingSystemRequest) returns (CreateCustomOperatingSystemResponse);
+  rpc GetCustomOperatingSystem(GetCustomOperatingSystemRequest) returns (GetCustomOperatingSystemResponse);
+  // ListCustomOperatingSystems lists the Custom Operating Systems of the
+  // Organization (or of one Workspace), newest first.
+  rpc ListCustomOperatingSystems(ListCustomOperatingSystemsRequest) returns (ListCustomOperatingSystemsResponse);
+  // UpdateCustomOperatingSystem changes the name, the description and the
+  // cloud-init settings. Servers already created are not affected.
+  rpc UpdateCustomOperatingSystem(UpdateCustomOperatingSystemRequest) returns (UpdateCustomOperatingSystemResponse);
+  // DeleteCustomOperatingSystem deletes the disk for good and stops its
+  // billing. Servers created from it keep their own disks. Idempotent.
+  rpc DeleteCustomOperatingSystem(DeleteCustomOperatingSystemRequest) returns (DeleteCustomOperatingSystemResponse);
+
   // GetServerTraffic returns a Server's network traffic in hourly buckets
   // over a time range. An hour with no measurement has no bucket, which is not
   // the same as zero traffic.
@@ -279,6 +306,18 @@ message CreateServerRequest {
   // cloud-init runs it once per instance, so changing it later has no effect on
   // a Server that has booted; create a new Server instead.
   string user_data = 10;
+  // Start the new Server from one of the Organization's Custom Operating
+  // Systems instead of a platform Operating System (operating_system_id is
+  // then ignored and may be empty). It must be READY, in the Workspace of the
+  // new Server (the Workspace's, when workspace_id is empty) and in the
+  // Server's Location (INVALID_ARGUMENT for another; location may be empty and
+  // is then the Custom Operating System's). The size's disk must be at least
+  // its min_disk_gib. NOT_FOUND for one that is not the caller's;
+  // FAILED_PRECONDITION when it is not READY. The platform's first-boot part of
+  // the cloud-init user data is applied when the Custom Operating System says
+  // cloud_init; the Server's login_user is the Custom Operating System's.
+  // Exclusive with restore_from_backup_id.
+  string custom_operating_system_id = 11;
 }
 
 message CreateServerResponse {
@@ -454,6 +493,77 @@ message RestoreServerRequest {
 
 message RestoreServerResponse {
   Server server = 1;
+}
+
+message CreateCustomOperatingSystemRequest {
+  // A UUID the caller makes up for this attempt, as CreateServerRequest's.
+  // Required.
+  string request_id = 1;
+  // The customer's name, 1 to 63 characters.
+  string name = 2;
+  string description = 3;
+  // The Workspace it belongs to; empty is the Organization's default Workspace.
+  string workspace_id = 4;
+  // Exactly one source.
+  oneof source {
+    CustomOperatingSystemSnapshotSource snapshot = 5;
+    CustomOperatingSystemBucketSource bucket_object = 6;
+    // A copy of this Custom Operating System (it must be READY).
+    string custom_operating_system_id = 7;
+  }
+  // The Location to store it in. Empty means the source's Location (a Snapshot's
+  // Server's, a Custom Operating System's own). An object in a bucket needs
+  // one (the bucket's Location is not used: the disk is copied inside the platform).
+  // A Snapshot cannot be saved to another Location (INVALID_ARGUMENT): copy
+  // the Custom Operating System instead.
+  string location = 8;
+  // The system runs cloud-init (see CustomOperatingSystem.cloud_init).
+  bool cloud_init = 9;
+  // The system's default user, required when cloud_init is set (at most 32
+  // characters, lowercase letters, digits, hyphens and underscores).
+  string login_user = 10;
+}
+
+message CreateCustomOperatingSystemResponse {
+  CustomOperatingSystem custom_operating_system = 1;
+}
+
+message GetCustomOperatingSystemRequest {
+  string custom_operating_system_id = 1;
+}
+
+message GetCustomOperatingSystemResponse {
+  CustomOperatingSystem custom_operating_system = 1;
+}
+
+message ListCustomOperatingSystemsRequest {
+  // Only this Workspace's; empty means every Workspace of the Organization.
+  string workspace_id = 1;
+}
+
+message ListCustomOperatingSystemsResponse {
+  repeated CustomOperatingSystem custom_operating_systems = 1;
+}
+
+message UpdateCustomOperatingSystemRequest {
+  string custom_operating_system_id = 1;
+  // Each field is changed only when its value is present.
+  optional string name = 2;
+  optional string description = 3;
+  optional bool cloud_init = 4;
+  optional string login_user = 5;
+}
+
+message UpdateCustomOperatingSystemResponse {
+  CustomOperatingSystem custom_operating_system = 1;
+}
+
+message DeleteCustomOperatingSystemRequest {
+  string custom_operating_system_id = 1;
+}
+
+message DeleteCustomOperatingSystemResponse {
+  string custom_operating_system_id = 1;
 }
 
 message GetServerTrafficRequest {

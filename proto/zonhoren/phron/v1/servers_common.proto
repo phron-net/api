@@ -136,6 +136,79 @@ enum ServerBackupState {
   SERVER_BACKUP_STATE_FAILED = 3;
 }
 
+// The states of a Custom Operating System.
+enum CustomOperatingSystemState {
+  CUSTOM_OPERATING_SYSTEM_STATE_UNSPECIFIED = 0;
+  // The disk is being copied from its source (a Snapshot, an object in a
+  // bucket, or another Custom Operating System). A Server cannot be created
+  // from it yet.
+  CUSTOM_OPERATING_SYSTEM_STATE_IMPORTING = 1;
+  CUSTOM_OPERATING_SYSTEM_STATE_READY = 2;
+  // The import ended without a usable disk; nothing is kept and nothing more is
+  // billed. failure_reason says why. Delete it and try again.
+  CUSTOM_OPERATING_SYSTEM_STATE_FAILED = 3;
+}
+
+// A Snapshot as the source of a Custom Operating System.
+message CustomOperatingSystemSnapshotSource {
+  // The Server the Snapshot was taken of. The Server may be DELETED while its
+  // copies are still kept (seven days).
+  string server_id = 1;
+  // The id of a ServerBackup of that Server whose kind is SNAPSHOT and whose
+  // state is READY.
+  string snapshot_id = 2;
+}
+
+// An object in one of the Organization's own Object Storage buckets as the
+// source of a Custom Operating System. Only an object of the caller's own
+// Organization can be named: there is no URL source.
+message CustomOperatingSystemBucketSource {
+  // The bucket's name, as StorageService lists it.
+  string bucket = 1;
+  // The object's key in that bucket.
+  string object_key = 2;
+}
+
+// A bootable disk the customer brought or saved, in one Location of one
+// Workspace, that Servers of that Workspace can be created from next to the
+// platform's Operating Systems. It is billed by its stored GiB for as long as
+// it exists, at the Snapshot rate.
+message CustomOperatingSystem {
+  // The Custom Operating System's id; pass it back in
+  // CreateServerRequest.custom_operating_system_id.
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  // The Workspace it belongs to, for good.
+  string workspace_id = 4;
+  CustomOperatingSystemState state = 5;
+  // Why the import failed, in a sentence; empty unless FAILED.
+  string failure_reason = 6;
+  // Where the disk came from. Exactly one is set.
+  oneof source {
+    CustomOperatingSystemSnapshotSource snapshot = 7;
+    CustomOperatingSystemBucketSource bucket_object = 8;
+    // The id of the Custom Operating System this one is a copy of.
+    string custom_operating_system_id = 9;
+  }
+  // The disk's size in bytes: the smallest disk a Server created from it can
+  // have is min_disk_gib. Zero until the import knows it.
+  int64 size_bytes = 10;
+  // The smallest disk, in GiB, a Server created from it can have.
+  int32 min_disk_gib = 11;
+  // The Location (Location.id) it is stored in. A Server created from it lives
+  // in this Location: copy it to use another.
+  string location = 12;
+  // Whether the customer says the system runs cloud-init, so the platform's
+  // first-boot part (SSH keys, hostname, network) can be applied. Without it
+  // the Server boots the disk as it is, with no SSH key installed.
+  bool cloud_init = 13;
+  // The user the SSH keys are installed for when cloud_init is set (the
+  // system's own default user), and the user the console shows for login.
+  string login_user = 14;
+  google.protobuf.Timestamp created_at = 15;
+}
+
 // A Server's size, chosen freely within the size rules in effect (there are
 // no named sizes). Memory and disk are in whole GiB.
 message ServerSize {
