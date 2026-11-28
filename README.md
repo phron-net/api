@@ -6,7 +6,7 @@ Servers and Object Storage services, and a generated Go client for them
 
 | Service | Purpose |
 | --- | --- |
-| `zonhoren.phron.v1.ServerService` | Servers: create, resize, power, firewall, SSH keys, backups and snapshots, traffic |
+| `zonhoren.phron.v1.ServerService` | Servers: create, resize, power, firewall, SSH keys, backups and snapshots, Custom Operating Systems, traffic |
 | `zonhoren.phron.v1.StorageService` | Object Storage: buckets, access keys, bucket limits |
 
 The API is served at `https://api.phron.net`. A call is an HTTPS `POST` to
